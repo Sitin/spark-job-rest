@@ -9,11 +9,14 @@ import client.SparkJobRestClient
 import org.junit.runner.RunWith
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.{FunSuite, Ignore, Matchers}
 
 /**
-* Created by raduchilom on 4/25/15.
-*/
+ * Integration test which requires running application and works only on `raduchilom` machine.
+ * SKIPPED!
+ * @todo Refactor those tests
+ */
+@Ignore
 @RunWith(classOf[JUnitRunner])
 class IntegrationTests extends FunSuite with ScalaFutures with Matchers {
 
