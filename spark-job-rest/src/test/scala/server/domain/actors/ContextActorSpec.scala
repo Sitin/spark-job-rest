@@ -4,8 +4,9 @@ import akka.actor.ActorSystem
 import akka.pattern.{ask, gracefulStop}
 import akka.testkit.TestActorRef
 import api.types.nextIdentifier
+import api.{ContextLike, SparkJobBase}
 import com.typesafe.config.{Config, ConfigFactory}
-import context.{FakeContext, JobContextFactory}
+import context.JobContextFactory
 import org.apache.spark.SparkContext
 import org.junit.runner.RunWith
 import org.scalatest._
@@ -16,6 +17,18 @@ import test.durations.{contextTimeout, dbTimeout, timeLimits}
 import test.fixtures
 
 import scala.util.Success
+
+trait FakeContext
+
+class FakeJobContextFactory extends JobContextFactory {
+  type C = ContextLike
+  def makeContext(config: Config, contextName: String): ContextLike = new ContextLike with FakeContext {
+    val contextClass = classOf[FakeContext].getName
+    override def stop(): Unit = {}
+    override def isValidJob(job: SparkJobBase): Boolean = true
+    override def sparkContext: SparkContext = null
+  }
+}
 
 /**
  * Test suit for [[ContextActor]]
@@ -74,7 +87,7 @@ class ContextActorSpec extends WordSpec with MustMatchers with BeforeAndAfter wi
   val fakeContextFactoryConfig = ConfigFactory.parseString(
     """
       |{
-      |  spark.job.rest.context.job-context-factory = "context.FakeJobContextFactory",
+      |  spark.job.rest.context.job-context-factory = "server.domain.actors.FakeJobContextFactory",
       |}
     """.stripMargin).withFallback(config)
 }

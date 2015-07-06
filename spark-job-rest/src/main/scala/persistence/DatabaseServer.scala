@@ -1,7 +1,5 @@
 package persistence
 
-import java.io.File
-
 import com.typesafe.config.Config
 import config.durations
 import org.h2.tools.Server
@@ -9,6 +7,7 @@ import org.slf4j.LoggerFactory
 import persistence.slickWrapper.Driver.api._
 import server.domain.actors.messages.DatabaseInfo
 import utils.ActorUtils.findAvailablePort
+import utils.FileUtils.deleteFolder
 
 
 object DatabaseServer {
@@ -123,22 +122,7 @@ class DatabaseServer(config: Config) {
    * Deletes base directory
    */
   private def deleteBaseDir(): Unit = {
-    // I hate you, Java, for such things.
-    // Why don't extend File::delete() with a switch for recursive remove.
-    def deleteDir(name: String): Unit = {
-      val index = new File(name)
-      if (index.exists()) {
-        for (entry <- index.list()) {
-          val file = new File(index.getPath, entry)
-          if (!file.isDirectory)
-            file.delete()
-          else
-            deleteDir(entry)
-        }
-        index.delete()
-      }
-    }
-    deleteDir(baseDir)
+    deleteFolder(baseDir)
     log.warn("Database server base directory deleted.")
   }
 }

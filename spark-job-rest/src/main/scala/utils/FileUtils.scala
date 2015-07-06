@@ -1,10 +1,11 @@
 package utils
 
 import java.io.{File, FileOutputStream}
+
 import org.apache.commons
 
 /**
- * Created by raduchilom on 22/03/15.
+ * Common utilities function for file manipulation
  */
 object FileUtils {
 
@@ -17,10 +18,10 @@ object FileUtils {
   def createFolder(folder: String, overwrite: Boolean) = {
     val file = new File(folder)
     if(!file.exists()){
-      file.mkdir()
+      file.mkdirs()
     } else if (overwrite){
       commons.io.FileUtils.deleteDirectory(file)
-      file.mkdir()
+      file.mkdirs()
     }
   }
 

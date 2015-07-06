@@ -16,8 +16,8 @@ import org.scalatest.{FunSuite, Ignore, Matchers}
  * SKIPPED!
  * @todo Refactor those tests
  */
-@Ignore
 @RunWith(classOf[JUnitRunner])
+@Ignore
 class IntegrationTests extends FunSuite with ScalaFutures with Matchers {
 
   implicit val timeout = Timeout(10, TimeUnit.SECONDS)
@@ -26,8 +26,10 @@ class IntegrationTests extends FunSuite with ScalaFutures with Matchers {
   val client = new SparkJobRestClient("http://localhost:8097")
   val contextName = "testContext"
   val exampleJarPath = "/Users/raduchilom/projects/spark-job-rest/examples/example-job/target/example-job.jar"
-  val parameters = Map[String, String]("jars" -> exampleJarPath,
-    "input" -> "100")
+  val parameters = Map[String, String](
+    "jars" -> exampleJarPath,
+    "input" -> "100"
+  )
 
   test("Create Context & Delete Context") {
     val context = client.createContext(contextName, parameters)
