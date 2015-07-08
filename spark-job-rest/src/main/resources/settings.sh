@@ -30,6 +30,10 @@ DATABASE_ROOT_DIR=${SJR_DATABASE_ROOT_DIR-"${APP_DIR}/db"}
 # Root location for contexts process directories
 CONTEXTS_BASE_DIR=${SJR_CONTEXTS_BASE_DIR-"${APP_DIR}/contexts"}
 
+# Set JAR names to avoid duplication
+SJR_SERVER_JAR_NAME="spark-job-rest-server.jar"
+SJR_SQL_JAR_NAME="spark-job-rest-sql.jar"
+
 # Load optional deployment settings overrides
 if [ -f "${DEPLOY_CONFIG}" ]; then
     source "${DEPLOY_CONFIG}"

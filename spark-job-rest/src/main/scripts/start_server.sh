@@ -73,7 +73,7 @@ if [ "$PORT" != "" ]; then
 fi
 
 # Need to explicitly include app dir in classpath so logging configs can be found
-CLASSPATH="${parentdir}/spark-job-rest-server.jar:${appdir}/..:${appdir}/../resources"
+CLASSPATH="${parentdir}/${SJR_SERVER_JAR_NAME}:${appdir}/..:${appdir}/../resources"
 
 # Log classpath
 echo "CLASSPATH = ${CLASSPATH}" >> "${LOG_DIR}/${LOG_FILE}"
@@ -94,6 +94,6 @@ export SPARK_JOB_REST_CONTEXT_START_SCRIPT="${appdir}/../resources/context_start
   --conf "spark.executor.extraJavaOptions=${LOGGING_OPTS}" \
   --conf "spark.driver.extraClassPath=${CLASSPATH}" \
   --driver-java-options "${GC_OPTS} ${JAVA_OPTS} ${LOGGING_OPTS} ${CONFIG_OVERRIDES}" \
-  $@ "${parentdir}/spark-job-rest.jar" \
+  $@ "${parentdir}/${SJR_SERVER_JAR_NAME}" \
   $conffile >> "${LOG_DIR}/${LOG_FILE}" 2>&1 &
 echo $! > "${appdir}/server.pid"

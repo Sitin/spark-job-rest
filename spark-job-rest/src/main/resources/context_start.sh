@@ -72,7 +72,7 @@ if [ "$PORT" != "" ]; then
 fi
 
 # Need to explicitly include app dir in classpath so logging configs can be found
-CLASSPATH="${parentdir}/spark-job-rest-server.jar:$parentdir:$parentdir/resources:$appdir"
+CLASSPATH="${parentdir}/spark-job-rest-server.jar:$parentdir:$parentdir/resources:$appdir:${classpathParam}"
 
 # Replace ":" with commas in classpath
 JARS=`echo "${classpathParam}" | sed -e 's/:/,/g'`
@@ -84,7 +84,7 @@ if [ ! "${EXTRA_CLASSPATH}" = "" ]; then
 fi
 
 # Prepend with SQL extras if exists
-SQL_EXTRAS="${parentdir}/spark-job-rest-sql.jar"
+SQL_EXTRAS="${parentdir}/${SJR_SQL_JAR_NAME}"
 if [ -f "${SQL_EXTRAS}" ]; then
     CLASSPATH="${SQL_EXTRAS}:${CLASSPATH}"
     JARS="${SQL_EXTRAS},${JARS}"
@@ -117,6 +117,6 @@ cd "${processDir}"
   --conf "spark.executor.extraJavaOptions=${LOGGING_OPTS}" \
   --conf "spark.driver.extraClassPath=${CLASSPATH}" \
   --driver-java-options "${GC_OPTS} ${JAVA_OPTS} ${LOGGING_OPTS} ${CONFIG_OVERRIDES}" \
-  --jars "${JARS}" "${parentdir}/spark-job-rest.jar" \
+  --jars "${JARS}" "${parentdir}/${SJR_SERVER_JAR_NAME}" \
   $conffile >> "${LOG_DIR}/${LOG_FILE}" 2>&1 &
 echo $! > "${processDir}/context.pid"
