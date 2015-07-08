@@ -4,7 +4,7 @@ CURRENT_DIR := $(shell pwd)
 # Deployment configuration
 #
 # Deploy script
-DEPLOY_SCRIPT = $(CURRENT_DIR)/src/main/scripts/deploy.sh
+DEPLOY_SCRIPT = $(CURRENT_DIR)/spark-job-rest/src/main/scripts/deploy.sh
 #
 # Default path to the tarball
 PACKAGE_PATH := $(CURRENT_DIR)/spark-job-rest/target/spark-job-rest.tar.gz
