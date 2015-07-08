@@ -46,7 +46,7 @@ object Bundle {
     val log = streams.value.log
 
     val srcBaseDir = sourceDirectory.value.getAbsolutePath
-    val deployScript = new File(s"$srcBaseDir/$resourcesPath/deploy.sh")
+    val deployScript = new File(s"$srcBaseDir/$scriptsPath/deploy.sh")
     val artifact = new File(s"${target.value.getPath}/deploy.sh")
 
     copyFile(deployScript, artifact, preserveLastModified = true)
@@ -60,5 +60,5 @@ object Bundle {
   def assemblyBundleArtifact(artifactName: String) =
     addArtifact(Artifact(artifactName, "bundle", "zip"), bundle) ++ bundleAssemblyTask ++ bundleIsDependsOnAssembly
 
-  lazy val bundleDeployScriptArtifact = addArtifact(Artifact("spark-job-rest", "deploy", "sh"), bundle) ++ bundleDeployScriptTask
+  lazy val bundleDeployScriptArtifact = addArtifact(Artifact("spark-job-rest-deploy", "script", "sh"), bundle) ++ bundleDeployScriptTask
 }

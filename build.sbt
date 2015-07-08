@@ -39,14 +39,8 @@ lazy val root = project.in(file("."))
     `spark-job-rest-sql`
   )
   .disablePlugins(AssemblyPlugin)
-  .settings(
-    version := buildVersion,
-    organization := "com.xpatterns",
-    scalaVersion := "2.10.5",
-    scalaBinaryVersion := "2.10"
-  )
-  .settings(publishSettings: _*)
-  .settings(bundleDeployScriptArtifact)
+  .settings(commonSettings: _*)
+  .settings(publish := {})
   .settings(projectVersionTask)
 
 lazy val commonSettings = Seq(
@@ -54,7 +48,7 @@ lazy val commonSettings = Seq(
   organization := "com.xpatterns",
   scalaVersion := "2.10.5",
   scalaBinaryVersion := "2.10"
-) ++ publishSettings
+)
 
 lazy val publishSettings = Seq(
   credentials += Credentials("Sonatype Nexus Repository Manager",
@@ -74,8 +68,10 @@ lazy val assemblySettings = Seq(
 lazy val `spark-job-rest-server` = project.in(file("spark-job-rest"))
   .dependsOn(`spark-job-rest-api`, `spark-job-rest-client`)
   .settings(commonSettings: _*)
+  .settings(publishSettings: _*)
   .settings(assemblySettings: _*)
   .settings(assemblyBundleArtifact("spark-job-rest"))
+  .settings(bundleDeployScriptArtifact)
   .settings(
     fork in test := true,
     libraryDependencies ++=
@@ -104,6 +100,7 @@ lazy val `spark-job-rest-server` = project.in(file("spark-job-rest"))
 lazy val `spark-job-rest-api` = project.in(file("spark-job-rest-api"))
   .disablePlugins(AssemblyPlugin)
   .settings(commonSettings: _*)
+  .settings(publishSettings: _*)
   .settings(
     libraryDependencies ++= sparkDependencies ++ jodaTimeDependencies ++ commonTestDependencies ++ Seq(
       "io.spray" %% "spray-json" % sprayVersion
@@ -112,6 +109,7 @@ lazy val `spark-job-rest-api` = project.in(file("spark-job-rest-api"))
 
 lazy val `spark-job-rest-sql` = project.in(file("spark-job-rest-sql"))
   .settings(commonSettings: _*)
+  .settings(publishSettings: _*)
   .settings(assemblySettings: _*)
   .dependsOn(`spark-job-rest-api`)
   .settings(assemblyBundleArtifact("spark-job-rest-sql"))
@@ -126,6 +124,7 @@ lazy val `spark-job-rest-sql` = project.in(file("spark-job-rest-sql"))
 lazy val `spark-job-rest-client` = project.in(file("spark-job-rest-client"))
   .disablePlugins(AssemblyPlugin)
   .settings(commonSettings: _*)
+  .settings(publishSettings: _*)
   .dependsOn(`spark-job-rest-api`)
   .settings(
     libraryDependencies ++= Seq(
