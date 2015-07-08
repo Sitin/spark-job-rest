@@ -68,7 +68,7 @@ if [ "$PORT" != "" ]; then
 fi
 
 # Need to explicitly include app dir in classpath so logging configs can be found
-CLASSPATH="${parentdir}/spark-job-rest.jar:$parentdir:$parentdir/resources:$appdir" >> "${LOG_DIR}/${LOG_FILE}"
+CLASSPATH="${parentdir}/spark-job-rest-server.jar:$parentdir:$parentdir/resources:$appdir" >> "${LOG_DIR}/${LOG_FILE}"
 
 # Replace ":" with commas in classpath
 JARS=`echo "${classpathParam}" | sed -e 's/:/,/g'`

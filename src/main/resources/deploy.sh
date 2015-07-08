@@ -6,7 +6,7 @@ CMD=$1
 ARG1=$2
 
 CDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-PROJECT_DIR="${CDIR}/../../../.."
+PROJECT_DIR="${CDIR}/../../.."
 
 SJR_IS_REMOTE_DEPLOY=${SJR_IS_REMOTE_DEPLOY-false}
 SJR_PACKAGE_PATH=${SJR_PACKAGE_PATH-${PROJECT_DIR}/spark-job-rest/target/scala-2.10/spark-job-rest-server.zip}
@@ -76,8 +76,8 @@ function exec_cmd() {
 
 function stop_server() {
     echo "Stopping server"
-    exec_cmd "if [ -d ${SJR_DEPLOY_PATH} ]; then ${SJR_DEPLOY_PATH}/bin/stop_server.sh; fi"
-    exec_cmd "pkill -f 'java.*spark-job-rest.jar'" || true
+    exec_cmd "if [ -d ${SJR_DEPLOY_PATH}/bin/stop_server.sh ]; then ${SJR_DEPLOY_PATH}/bin/stop_server.sh; fi"
+    exec_cmd "pkill -f 'java.*spark-job-rest-server.jar'" || true
 }
 
 function delete_server() {
@@ -102,7 +102,7 @@ function extract_package() {
     echo "Extract from tarball"
     exec_cmd "mkdir -p ${SJR_DEPLOY_PATH}"
     if [ "${SJR_IS_REMOTE_DEPLOY}" = "true" ]; then
-        exec_remote "`extract_command /tmp/spark-job-rest.zip`"
+        exec_remote "`extract_command /tmp/spark-job-rest-server.zip`"
         exec_remote "`extract_command /tmp/spark-job-rest-sql.zip`"
     else
         exec_local "`extract_command ${SJR_PACKAGE_PATH}`"

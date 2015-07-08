@@ -40,7 +40,8 @@ lazy val root = project.in(file("."))
   )
   .disablePlugins(AssemblyPlugin)
   .settings(commonSettings: _*)
-  .settings(publish := {})
+  .settings(publishSettings: _*)
+  .settings(bundleDeployScriptArtifact)
   .settings(projectVersionTask)
 
 lazy val commonSettings = Seq(
@@ -70,8 +71,7 @@ lazy val `spark-job-rest-server` = project.in(file("spark-job-rest"))
   .settings(commonSettings: _*)
   .settings(publishSettings: _*)
   .settings(assemblySettings: _*)
-  .settings(assemblyBundleArtifact("spark-job-rest"))
-  .settings(bundleDeployScriptArtifact)
+  .settings(assemblyBundleArtifact("spark-job-rest-server"))
   .settings(
     fork in test := true,
     libraryDependencies ++=

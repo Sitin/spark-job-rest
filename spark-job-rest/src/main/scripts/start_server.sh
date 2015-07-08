@@ -48,7 +48,11 @@ if [ -z "$SPARK_HOME" ]; then
 fi
 
 # Pull in other env vars in spark config, such as MESOS_NATIVE_LIBRARY
-. $SPARK_CONF_HOME/spark-env.sh
+if [ -f $SPARK_CONF_HOME/spark-env.sh ]; then
+    . $SPARK_CONF_HOME/spark-env.sh
+else
+    echo "Warning! '$SPARK_CONF_HOME/spark-env.sh' is not exist. Check SPARK_CONF_HOME or create the file."
+fi
 
 
 mkdir -p "${LOG_DIR}"
@@ -69,7 +73,7 @@ if [ "$PORT" != "" ]; then
 fi
 
 # Need to explicitly include app dir in classpath so logging configs can be found
-CLASSPATH="${parentdir}/spark-job-rest.jar:${appdir}/..:${appdir}/../resources"
+CLASSPATH="${parentdir}/spark-job-rest-server.jar:${appdir}/..:${appdir}/../resources"
 
 # Log classpath
 echo "CLASSPATH = ${CLASSPATH}" >> "${LOG_DIR}/${LOG_FILE}"

@@ -4,7 +4,7 @@ CURRENT_DIR := $(shell pwd)
 # Deployment configuration
 #
 # Deploy script
-DEPLOY_SCRIPT = $(CURRENT_DIR)/spark-job-rest/src/main/scripts/deploy.sh
+DEPLOY_SCRIPT = $(CURRENT_DIR)/src/main/resources/deploy.sh
 #
 # Default path to the tarball
 PACKAGE_PATH := $(CURRENT_DIR)/spark-job-rest/target/spark-job-rest.tar.gz
@@ -37,7 +37,6 @@ SJR_VERSION ?= $(shell BUILD_MARK=$(BUILD_MARK) sbt --error 'set showSuccess := 
 REMOTE_PARAMS := SJR_DEPLOY_PATH=$(SJR_DEPLOY_PATH) \
                  SJR_DEPLOY_HOST=$(SJR_DEPLOY_HOST) \
                  SJR_DEPLOY_KEY=$(SJR_DEPLOY_KEY) \
-                 SJR_PACKAGE_PATH=$(PACKAGE_PATH) \
                  SJR_IS_REMOTE_DEPLOY="true" \
                  SJR_REMOTE_DEPLOY_PATH=$(SJR_REMOTE_DEPLOY_PATH)
 
