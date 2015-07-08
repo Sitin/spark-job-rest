@@ -4,11 +4,6 @@ CDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 APP_DIR="${CDIR}/../"
 DEPLOY_CONFIG="${CDIR}/deploy-settings.sh"
 
-# Load optional deployment settings
-if [ -f "${DEPLOY_CONFIG}" ]; then
-    source "${DEPLOY_CONFIG}"
-fi
-
 if [ -z "${SPARK_HOME}" ]; then
     SPARK_HOME="/opt/spark"
 fi
@@ -34,3 +29,8 @@ DATABASE_ROOT_DIR=${SJR_DATABASE_ROOT_DIR-"${APP_DIR}/db"}
 
 # Root location for contexts process directories
 CONTEXTS_BASE_DIR=${SJR_CONTEXTS_BASE_DIR-"${APP_DIR}/contexts"}
+
+# Load optional deployment settings overrides
+if [ -f "${DEPLOY_CONFIG}" ]; then
+    source "${DEPLOY_CONFIG}"
+fi
