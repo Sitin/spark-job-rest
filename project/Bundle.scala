@@ -4,9 +4,12 @@ import sbt._
 import sbtassembly.AssemblyPlugin.autoImport._
 
 object Bundle {
+  private lazy val scriptsPath = "main/scripts"
+  private lazy val resourcesPath = "main/resources"
+
   lazy val bundle = TaskKey[File]("bundle", "Bundles assembly, scripts and resources to zip achive.")
 
-  lazy val bundleTask = bundle := {
+  lazy val bundleAssemblyTask = bundle := {
     val log = streams.value.log
 
     val assemblyFileName = (assemblyJarName in assembly).value
@@ -17,12 +20,12 @@ object Bundle {
 
     val srcBaseDir = sourceDirectory.value.getAbsolutePath
 
-    val srcResources = s"$srcBaseDir/main/resources"
+    val srcResources = s"$srcBaseDir/$resourcesPath"
     val destResources = "resources"
     val resourceFiles = listFiles(new File(srcResources), "*.*")
     val resourceDests = resourceFiles.map(file => s"$destResources/${file.name}")
 
-    val scriptsSrc = s"$srcBaseDir/main/scripts"
+    val scriptsSrc = s"$srcBaseDir/$scriptsPath"
     val scriptsDest = "bin"
     val scriptFiles = listFiles(new File(scriptsSrc), "*_server.sh")
     val scriptDests = scriptFiles.map(file => s"$scriptsDest/${file.name}")
@@ -39,8 +42,23 @@ object Bundle {
     artifact
   }
 
+  lazy val bundleDeployScriptTask = bundle := {
+    val log = streams.value.log
+
+    val srcBaseDir = sourceDirectory.value.getAbsolutePath
+    val deployScript = new File(s"$srcBaseDir/$resourcesPath/deploy.sh")
+    val artifact = new File(s"${target.value.getPath}/deploy.sh")
+
+    copyFile(deployScript, artifact, preserveLastModified = true)
+    log.info(s"Copied $deployScript to $artifact")
+
+    artifact
+  }
+
   lazy val bundleIsDependsOnAssembly = Seq(bundle <<= bundle.dependsOn(assembly))
 
-  def bundleArtifact(artifactName: String) =
-    addArtifact(Artifact(artifactName, "bundle", "zip"), bundle) ++ bundleTask ++ bundleIsDependsOnAssembly
+  def assemblyBundleArtifact(artifactName: String) =
+    addArtifact(Artifact(artifactName, "bundle", "zip"), bundle) ++ bundleAssemblyTask ++ bundleIsDependsOnAssembly
+
+  lazy val bundleDeployScriptArtifact = addArtifact(Artifact("spark-job-rest", "deploy", "sh"), bundle) ++ bundleDeployScriptTask
 }

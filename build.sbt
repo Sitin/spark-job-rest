@@ -39,16 +39,15 @@ lazy val root = project.in(file("."))
     `spark-job-rest-sql`
   )
   .disablePlugins(AssemblyPlugin)
-  .settings(
-    publish := {}
-  )
+  .settings(commonSettings: _*)
+  .settings(bundleDeployScriptArtifact)
+  .settings(projectVersionTask)
 
 lazy val commonSettings = Seq(
   version := buildVersion,
   organization := "com.xpatterns",
   scalaVersion := "2.10.5",
-  scalaBinaryVersion := "2.10",
-  libraryDependencies ++= commonTestDependencies
+  scalaBinaryVersion := "2.10"
 ) ++ publishSettings
 
 lazy val publishSettings = Seq(
@@ -63,7 +62,6 @@ lazy val publishSettings = Seq(
 )
 
 lazy val assemblySettings = Seq(
-
   test in assembly := {}
 )
 
@@ -71,7 +69,7 @@ lazy val `spark-job-rest` = project.in(file("spark-job-rest"))
   .dependsOn(`spark-job-rest-api`, `spark-job-rest-client`)
   .settings(commonSettings: _*)
   .settings(assemblySettings: _*)
-  .settings(bundleArtifact("spark-job-rest"))
+  .settings(assemblyBundleArtifact("spark-job-rest"))
   .settings(
     fork in test := true,
     libraryDependencies ++=
@@ -79,7 +77,8 @@ lazy val `spark-job-rest` = project.in(file("spark-job-rest"))
       ++ sprayDependencies
       ++ httpConponentDependencies
       ++ jodaTimeDependencies
-      ++ persistenceDependencies,
+      ++ persistenceDependencies
+      ++ commonTestDependencies,
     libraryDependencies ++= Seq(
         "com.google.code.gson" % "gson" % "2.3.1",
         "com.google.code.findbugs" % "jsr305" % "2.0.3",
@@ -100,7 +99,7 @@ lazy val `spark-job-rest-api` = project.in(file("spark-job-rest-api"))
   .disablePlugins(AssemblyPlugin)
   .settings(commonSettings: _*)
   .settings(
-    libraryDependencies ++= sparkDependencies ++ jodaTimeDependencies ++ Seq(
+    libraryDependencies ++= sparkDependencies ++ jodaTimeDependencies ++ commonTestDependencies ++ Seq(
       "io.spray" %% "spray-json" % sprayVersion
     )
   )
@@ -109,9 +108,9 @@ lazy val `spark-job-rest-sql` = project.in(file("spark-job-rest-sql"))
   .settings(commonSettings: _*)
   .settings(assemblySettings: _*)
   .dependsOn(`spark-job-rest-api`)
-  .settings(bundleArtifact("spark-job-rest-sql"))
+  .settings(assemblyBundleArtifact("spark-job-rest-sql"))
   .settings(
-    libraryDependencies ++= sparkDependencies ++ asProvided(Seq(
+    libraryDependencies ++= sparkDependencies ++ commonTestDependencies ++ asProvided(Seq(
       "org.apache.spark" %% "spark-sql" % sparkVersion,
       "org.apache.spark" %% "spark-hive" % sparkVersion,
       "com.typesafe" % "config" % typesafeConfigVersion

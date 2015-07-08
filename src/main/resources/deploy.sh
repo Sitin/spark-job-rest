@@ -6,7 +6,7 @@ CMD=$1
 ARG1=$2
 
 CDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-PROJECT_DIR="${CDIR}/../../../.."
+PROJECT_DIR="${CDIR}/../../.."
 
 SJR_IS_REMOTE_DEPLOY=${SJR_IS_REMOTE_DEPLOY-false}
 SJR_PACKAGE_PATH=${SJR_PACKAGE_PATH-${PROJECT_DIR}/spark-job-rest/target/scala-2.10/spark-job-rest.zip}

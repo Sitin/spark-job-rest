@@ -1,3 +1,5 @@
+import sbt.TaskKey
+
 import scala.util.Try
 
 /**
@@ -7,8 +9,14 @@ import scala.util.Try
  *  2. buildMark is short string that represents build context.
  */
 object BuildVersion {
+  lazy val projectVersion = TaskKey[Unit]("projectVersion", "Shows project version")
+
+  lazy val projectVersionTask = projectVersion := {
+    println(buildVersion)
+  }
+
   lazy val isSnapshot = Try(System.getenv("IS_RELEASE").trim != "true").getOrElse(true)
-  lazy val releaseVersion = "0.3.3"
+  lazy val releaseVersion = "0.3.3-DR"
 
   lazy val buildMark = Try(System.getenv("BUILD_MARK").trim).getOrElse("")
   lazy val snapshotMark = if (isSnapshot) "SNAPSHOT" else ""
