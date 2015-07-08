@@ -4,7 +4,7 @@ import Bundle._
 
 net.virtualvoid.sbt.graph.Plugin.graphSettings
 
-name := "spark-job-REST"
+name := "spark-job-rest"
 
 lazy val sparkVersion = "1.4.0"
 
@@ -27,19 +27,25 @@ resolvers ++= Seq(
 
 lazy val root = project.in(file("."))
   .aggregate(
-    `spark-job-rest`,
+    `spark-job-rest-server`,
     `spark-job-rest-api`,
     `spark-job-rest-client`,
     `spark-job-rest-sql`
   )
   .dependsOn(
-    `spark-job-rest`,
+    `spark-job-rest-server`,
     `spark-job-rest-api`,
     `spark-job-rest-client`,
     `spark-job-rest-sql`
   )
   .disablePlugins(AssemblyPlugin)
-  .settings(commonSettings: _*)
+  .settings(
+    version := buildVersion,
+    organization := "com.xpatterns",
+    scalaVersion := "2.10.5",
+    scalaBinaryVersion := "2.10"
+  )
+  .settings(publishSettings: _*)
   .settings(bundleDeployScriptArtifact)
   .settings(projectVersionTask)
 
@@ -65,7 +71,7 @@ lazy val assemblySettings = Seq(
   test in assembly := {}
 )
 
-lazy val `spark-job-rest` = project.in(file("spark-job-rest"))
+lazy val `spark-job-rest-server` = project.in(file("spark-job-rest"))
   .dependsOn(`spark-job-rest-api`, `spark-job-rest-client`)
   .settings(commonSettings: _*)
   .settings(assemblySettings: _*)
