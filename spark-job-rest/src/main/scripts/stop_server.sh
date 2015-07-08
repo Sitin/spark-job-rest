@@ -8,6 +8,7 @@ if [ -f "$appdir/server.pid" ]; then
     if [ -n "$proc" ]; then
         echo "Killing pid $proc"
         kill -9 $proc
+        rm -f "$appdir/server.pid"
     else
         echo "Pid $pid does not exist or it's not for spark-job-rest."
     fi

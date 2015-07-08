@@ -1,6 +1,6 @@
 import sbt._
 
-object Build extends Build {
+object BuildSugar {
   type Dependencies = Seq[ModuleID]
 
   def asProvided(dependencies: Dependencies): Dependencies = dependencies.map({

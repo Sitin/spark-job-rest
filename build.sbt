@@ -1,4 +1,6 @@
-import Build._
+import BuildSugar._
+import BuildVersion._
+import Bundle._
 
 net.virtualvoid.sbt.graph.Plugin.graphSettings
 
@@ -14,11 +16,14 @@ lazy val akkaVersion = "2.3.4"
 
 lazy val typesafeConfigVersion = "1.2.1"
 
-resolvers += "Maven Repository" at "http://repo1.maven.org/maven2"
+lazy val nexusURL = "http://nexus.hq.datarobot.com:8081"
 
-resolvers += "Cloudera Releases" at "https://repository.cloudera.com/artifactory/repo/"
-
-resolvers += "Akka Releases" at "http://repo.akka.io/releases"
+resolvers ++= Seq(
+  "Maven Repository" at "http://repo1.maven.org/maven2",
+  "Cloudera Releases" at "https://repository.cloudera.com/artifactory/repo/",
+  "Akka Releases" at "http://repo.akka.io/releases",
+  "Nexus" at s"$nexusURL/content/groups/public"
+) ++ Seq("snapshots", "releases").map(Resolver.sonatypeRepo)
 
 lazy val root = project.in(file("."))
   .aggregate(
@@ -34,13 +39,27 @@ lazy val root = project.in(file("."))
     `spark-job-rest-sql`
   )
   .disablePlugins(AssemblyPlugin)
+  .settings(
+    publish := {}
+  )
 
 lazy val commonSettings = Seq(
-  version := "0.3.3",
+  version := buildVersion,
   organization := "com.xpatterns",
   scalaVersion := "2.10.5",
   scalaBinaryVersion := "2.10",
   libraryDependencies ++= commonTestDependencies
+) ++ publishSettings
+
+lazy val publishSettings = Seq(
+  credentials += Credentials("Sonatype Nexus Repository Manager",
+    "nexus.hq.datarobot.com", "admin", "admin123"),
+  publishTo <<= version { v: String =>
+    if (BuildVersion.isSnapshot)
+      Some("snapshots" at s"$nexusURL/content/repositories/snapshots")
+    else
+      Some("releases" at s"$nexusURL/content/repositories/releases")
+  }
 )
 
 lazy val assemblySettings = Seq(
@@ -51,26 +70,15 @@ lazy val `spark-job-rest` = project.in(file("spark-job-rest"))
   .dependsOn(`spark-job-rest-api`, `spark-job-rest-client`)
   .settings(commonSettings: _*)
   .settings(assemblySettings: _*)
+  .settings(bundleArtifact("spark-job-rest"))
   .settings(
-    assemblyJarName in assembly := s"spark-job-rest-${version.value}.jar",
     fork in test := true,
-    libraryDependencies ++= sparkDependencies,
-    libraryDependencies ++= Seq(
-      "io.spray" % "spray-client" % sprayVersion,
-      "io.spray" % "spray-caching" % sprayVersion,
-      "io.spray" % "spray-can" % sprayVersion,
-      "io.spray" % "spray-routing" % sprayVersion
-    ),
-    libraryDependencies ++= Seq(
-      "org.apache.httpcomponents" % "httpclient" % httpComponentsVersion,
-      "org.apache.httpcomponents" % "httpcore" % httpComponentsVersion
-    ),
-    libraryDependencies ++= jodaTimeDependencies,
-    libraryDependencies ++= Seq(
-      "com.h2database" % "h2" % "1.4.187",
-      "com.typesafe.slick" %% "slick" % "3.0.0",
-      "com.github.tototoshi" %% "slick-joda-mapper" % "2.0.0"
-    ),
+    libraryDependencies ++=
+      sparkDependencies
+      ++ sprayDependencies
+      ++ httpConponentDependencies
+      ++ jodaTimeDependencies
+      ++ persistenceDependencies,
     libraryDependencies ++= Seq(
         "com.google.code.gson" % "gson" % "2.3.1",
         "com.google.code.findbugs" % "jsr305" % "2.0.3",
@@ -100,8 +108,8 @@ lazy val `spark-job-rest-sql` = project.in(file("spark-job-rest-sql"))
   .settings(commonSettings: _*)
   .settings(assemblySettings: _*)
   .dependsOn(`spark-job-rest-api`)
+  .settings(bundleArtifact("spark-job-rest-sql"))
   .settings(
-    assemblyJarName in assembly := "spark-job-rest-sql.jar",
     libraryDependencies ++= sparkDependencies ++ asProvided(Seq(
       "org.apache.spark" %% "spark-sql" % sparkVersion,
       "org.apache.spark" %% "spark-hive" % sparkVersion,
@@ -141,3 +149,15 @@ lazy val commonTestDependencies = asTest(Seq(
   "junit" % "junit" % "4.4",
   "org.scalatest" %% "scalatest" % "2.2.4"
 ))
+
+lazy val httpConponentDependencies = Seq(
+  "org.apache.httpcomponents" % "httpclient" % httpComponentsVersion,
+  "org.apache.httpcomponents" % "httpcore" % httpComponentsVersion
+)
+
+lazy val sprayDependencies = Seq(
+  "io.spray" % "spray-client" % sprayVersion,
+  "io.spray" % "spray-caching" % sprayVersion,
+  "io.spray" % "spray-can" % sprayVersion,
+  "io.spray" % "spray-routing" % sprayVersion
+)
