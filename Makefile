@@ -36,7 +36,7 @@ REMOTE_PARAMS := SJR_DEPLOY_PATH=$(SJR_DEPLOY_PATH) \
 all: remove build deploy
 
 build:
-	@sbt clean package assembly publishLocal
+	@sbt clean package bundle publishLocal
 
 publish:
 	@BUILD_MARK=$(BUILD_MARK) sbt publish

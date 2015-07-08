@@ -63,6 +63,7 @@ lazy val publishSettings = Seq(
 )
 
 lazy val assemblySettings = Seq(
+
   test in assembly := {}
 )
 
