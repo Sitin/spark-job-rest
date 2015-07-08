@@ -9,7 +9,7 @@ CDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 PROJECT_DIR="${CDIR}/../../../.."
 
 SJR_IS_REMOTE_DEPLOY=${SJR_IS_REMOTE_DEPLOY-false}
-SJR_PACKAGE_PATH=${SJR_PACKAGE_PATH-${PROJECT_DIR}/spark-job-rest/target/scala-2.10/spark-job-rest.zip}
+SJR_PACKAGE_PATH=${SJR_PACKAGE_PATH-${PROJECT_DIR}/spark-job-rest/target/scala-2.10/spark-job-rest-server.zip}
 SJR_EXTRAS_PATH=${SJR_EXTRAS_PATH-${PROJECT_DIR}/spark-job-rest-sql/target/scala-2.10/spark-job-rest-sql.zip}
 
 SJR_DEPLOY_PATH="${SJR_DEPLOY_PATH}"                 # Empty variable will cause error in action
