@@ -19,6 +19,11 @@ SJR_DEPLOY_HOST ?=
 SJR_DEPLOY_KEY ?=
 
 #
+# Build versioning
+#
+BUILD_MARK ?= DEV-`git rev-parse --abbrev-ref HEAD | sed -e 's:/:-:g'`
+
+#
 # Remote deployment parameters
 #
 REMOTE_PARAMS := SJR_DEPLOY_PATH=$(SJR_DEPLOY_PATH) \
@@ -31,7 +36,10 @@ REMOTE_PARAMS := SJR_DEPLOY_PATH=$(SJR_DEPLOY_PATH) \
 all: remove build deploy
 
 build:
-	@mvn clean install
+	@sbt clean package assembly publishLocal
+
+publish:
+	@BUILD_MARK=$(BUILD_MARK) sbt publish
 
 deploy:
 	@SJR_DEPLOY_PATH=$(SJR_DEPLOY_PATH) \
