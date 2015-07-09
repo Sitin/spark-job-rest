@@ -10,7 +10,7 @@ DEPLOY_SCRIPT = $(CURRENT_DIR)/src/main/resources/deploy.sh
 PACKAGE_PATH := $(CURRENT_DIR)/spark-job-rest/target/spark-job-rest.tar.gz
 #
 # Override this to set deploy path
-SJR_DEPLOY_PATH ?= $(CURRENT_DIR)/deploy
+SJR_DEPLOY_PATH ?= $(CURRENT_DIR)/deploy-test
 
 #
 # We strongly suggest not to keep remote deployment configuration variables out of Git control!

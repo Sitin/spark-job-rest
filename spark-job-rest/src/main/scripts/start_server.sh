@@ -107,7 +107,7 @@ function start_server() {
 if [ "${SJR_RUN_DETACHED}" = "true" ]; then
     start_server &
     echo $! > "${appdir}/server.pid"
-    echo "Server started in detached mode. PID = `echo "${appdir}/server.pid"`"
+    echo "Server started in detached mode. PID = `cat "${appdir}/server.pid"`"
 elif [ "${SJR_RUN_DETACHED}" = "false" ]; then
     start_server
 else

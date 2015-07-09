@@ -28,7 +28,7 @@ classpath
 .orig
 .java.orig
 dependency-reduced-pom.xml
-/deploy
+/deploy-test
 **/resources/deploy.conf
 **/resources/deploy-settings.sh
 # TODO: Implement basic fairscheduler config
