@@ -48,7 +48,8 @@ lazy val commonSettings = Seq(
   version := buildVersion,
   organization := "com.xpatterns",
   scalaVersion := "2.10.5",
-  scalaBinaryVersion := "2.10"
+  scalaBinaryVersion := "2.10",
+  updateOptions := updateOptions.value.withCachedResolution(true)
 )
 
 lazy val publishSettings = Seq(
