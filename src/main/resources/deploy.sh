@@ -8,11 +8,20 @@ ARG1=$2
 CDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 PROJECT_DIR="${CDIR}/../../.."
 
+# By default we deploy in local mode
 SJR_IS_REMOTE_DEPLOY=${SJR_IS_REMOTE_DEPLOY-false}
-SJR_PACKAGE_PATH=${SJR_PACKAGE_PATH-${PROJECT_DIR}/spark-job-rest/target/scala-2.10/spark-job-rest-server.zip}
-SJR_EXTRAS_PATH=${SJR_EXTRAS_PATH-${PROJECT_DIR}/spark-job-rest-sql/target/scala-2.10/spark-job-rest-sql.zip}
 
-SJR_DEPLOY_PATH="${SJR_DEPLOY_PATH}"                 # Empty variable will cause error in action
+SJR_PACKAGE_NAME=spark-job-rest-server.zip
+SJR_EXTRAS_PACKAGE_NAME=spark-job-rest-sql.zip
+
+#
+# Following paths will be set to defaults if empty
+#
+SJR_PACKAGE_PATH="${SJR_PACKAGE_PATH}"
+SJR_EXTRAS_PATH="${SJR_EXTRAS_PATH}"
+SJR_DEPLOY_PATH="${SJR_DEPLOY_PATH}"
+
+# Remote deploy varibles
 SJR_REMOTE_DEPLOY_PATH="${SJR_REMOTE_DEPLOY_PATH}"   # Overrides SJR_DEPLOY_PATH in case of remote deploy
 SJR_DEPLOY_KEY="${SJR_DEPLOY_KEY}"                   # Empty by default
 SJR_DEPLOY_HOST="${SJR_DEPLOY_HOST}"                 # Empty for local deploy
@@ -20,9 +29,52 @@ SJR_DEPLOY_HOST="${SJR_DEPLOY_HOST}"                 # Empty for local deploy
 CONFIGURATION_IS_SET="false"
 
 function setup_defaults() {
+    #
+    # Default deployment path is "spark-job-rest" under current directory
+    #
     if [ -z "${SJR_DEPLOY_PATH}" ]; then
-        echo "Spark-Job-REST deployment path is not defined. Set 'SJR_DEPLOY_PATH' before running this script."
+        SJR_DEPLOY_PATH="${CDIR}/spark-job-rest"
+    fi
+
+    #
+    # Default package path is a bundle under project directory.
+    # If id doesn't exists then package looked up in the same directory as deploy script
+    #
+    DEFAULT_PACKAGE_PATH=${PROJECT_DIR}/spark-job-rest/target/scala-2.10/${SJR_PACKAGE_NAME}
+    if [ ! -f "${DEFAULT_PACKAGE_PATH}" ]; then
+        DEFAULT_PACKAGE_PATH="${CDIR}/${SJR_PACKAGE_NAME}"
+    fi
+
+    # Set empty package path to default
+    if [ -z "${SJR_PACKAGE_PATH}" ]; then
+        SJR_PACKAGE_PATH="${DEFAULT_PACKAGE_PATH}"
+    fi
+
+    # Absence of server package is an error
+    if [ ! -f "${SJR_PACKAGE_PATH}" ]; then
+        echo "Server package path is not accessible. Last tried: '${SJR_PACKAGE_PATH}'"
         exit -1
+    fi
+
+    #
+    # The rules for extras package is the same as for server package: first project path, next current directory.
+    #
+    DEFAULT_EXTRAS_PACKAGE_PATH=${PROJECT_DIR}/spark-job-rest-sql/target/scala-2.10/${SJR_EXTRAS_PACKAGE_NAME}
+    if [ ! -f "${DEFAULT_EXTRAS_PACKAGE_PATH}" ]; then
+        DEFAULT_EXTRAS_PACKAGE_PATH="${CDIR}/${SJR_EXTRAS_PACKAGE_NAME}"
+    fi
+
+    # Set empty extras package path to default
+    if [ -z "${SJR_EXTRAS_PATH}" ]; then
+        SJR_EXTRAS_PATH="${DEFAULT_EXTRAS_PACKAGE_PATH}"
+    fi
+
+    # If extras package is set but not exists we must exit with error
+    if [ ! "${SJR_EXTRAS_PATH}" = "" ]; then
+        if [ ! -f "${SJR_EXTRAS_PATH}" ]; then
+            echo "Extras package path is set but file is not exists: '${SJR_EXTRAS_PATH}'"
+            exit -1
+        fi
     fi
 }
 
@@ -86,9 +138,9 @@ function delete_server() {
     exec_cmd "rm -rf ${SJR_DEPLOY_PATH}"
 }
 
-function upload_tarball() {
+function upload_files() {
     if [ "${SJR_IS_REMOTE_DEPLOY}" = "true" ]; then
-        echo "Upload tarball"
+        echo "Upload files"
         scp "${SSH_KEY_EXPRESSION}" "$SJR_PACKAGE_PATH" "${SJR_DEPLOY_HOST}":"/tmp/"
         scp "${SSH_KEY_EXPRESSION}" "$SJR_EXTRAS_PATH" "${SJR_DEPLOY_HOST}":"/tmp/"
     fi
@@ -99,11 +151,11 @@ function extract_command() {
 }
 
 function extract_package() {
-    echo "Extract from tarball"
+    echo "Extract from archives"
     exec_cmd "mkdir -p ${SJR_DEPLOY_PATH}"
     if [ "${SJR_IS_REMOTE_DEPLOY}" = "true" ]; then
-        exec_remote "`extract_command /tmp/spark-job-rest-server.zip`"
-        exec_remote "`extract_command /tmp/spark-job-rest-sql.zip`"
+        exec_remote "`extract_command /tmp/${SJR_PACKAGE_NAME}`"
+        exec_remote "`extract_command /tmp/${SJR_EXTRAS_PACKAGE_NAME}`"
     else
         exec_local "`extract_command ${SJR_PACKAGE_PATH}`"
         exec_local "`extract_command ${SJR_EXTRAS_PATH}`"
@@ -119,7 +171,7 @@ function remove_server() {
 function deploy_server() {
     echo "Deploing to ${SJR_DEPLOY_HOST}:${SJR_DEPLOY_PATH}"
     remove_server
-    upload_tarball
+    upload_files
     extract_package
     start_server
 }
@@ -142,16 +194,17 @@ function server_log_context() {
 
 function show_help() {
     echo "Spark-Job-REST deployment tool"
-    echo "Usage: deploy.sh [deploy|start|stop|restart|log|log-context <context>]"
+    echo "Usage: deploy.sh [deploy|start|stop|restart|log|log-context <context>|debug|debug-resolved]"
 }
 
 function show_vars() {
-    echo "SJR_DEPLOY_PATH=${SJR_DEPLOY_PATH}"
-    echo "SJR_DEPLOY_HOST=${SJR_DEPLOY_HOST}"
-    echo "SJR_DEPLOY_KEY=${SJR_DEPLOY_KEY}"
-    echo "SJR_PACKAGE_PATH=${SJR_PACKAGE_PATH}"
-    echo "SJR_IS_REMOTE_DEPLOY=${SJR_IS_REMOTE_DEPLOY}"
-    echo "SJR_REMOTE_DEPLOY_PATH=${SJR_REMOTE_DEPLOY_PATH}"
+    echo "SJR_DEPLOY_PATH        = ${SJR_DEPLOY_PATH}"
+    echo "SJR_DEPLOY_HOST        = ${SJR_DEPLOY_HOST}"
+    echo "SJR_DEPLOY_KEY         = ${SJR_DEPLOY_KEY}"
+    echo "SJR_PACKAGE_PATH       = ${SJR_PACKAGE_PATH}"
+    echo "SJR_EXTRAS_PATH        = ${SJR_EXTRAS_PATH}"
+    echo "SJR_IS_REMOTE_DEPLOY   = ${SJR_IS_REMOTE_DEPLOY}"
+    echo "SJR_REMOTE_DEPLOY_PATH = ${SJR_REMOTE_DEPLOY_PATH}"
 }
 
 function main() {
@@ -179,6 +232,9 @@ function main() {
         server_log_context
         ;;
     debug) show_vars
+        ;;
+    debug-resolved) setup
+        show_vars
         ;;
     help) show_help
         ;;

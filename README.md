@@ -12,6 +12,7 @@ SJR Version   | Spark Version
 ------------- | -------------
 0.3.0         |  1.1.0 
 0.3.1         |  1.3.1 
+0.3.3         |  1.4.0 
 
 ## Building Spark-Job-Rest (SJR)
 
@@ -19,33 +20,13 @@ The project is build with Maven3 and Java7.
 ```
 make build
 ```
-SJR can now be deployed from spark-job-rest/spark-job-rest/target/spark-job-rest.tar.gz
-
-If your build fails with this error:
-```
-[ERROR] spark-job-rest/src/main/scala/server/domain/actors/ContextManagerActor.scala:171: error: value redirectOutput is not a member of ProcessBuilder
-```
-This happens because Maven uses Java6. You can run mvn -version in order to check the Java version that Maven uses.
-```sh
-$ mvn -version
-Apache Maven 3.2.5
-Java version: 1.6.0_65
-```
-If Maven uses Java6 you need to change it to Java7. This can be done by adding the JAVA_HOME export in your ~/.mavenrc file:
-```sh
-# OSX:
-export JAVA_HOME=/Library/Java/JavaVirtualMachines/{jdk-version}/Contents/Home
-```
-```sh
-# Ubuntu:
-export JAVA_HOME=/usr/lib/jvm/{jdk-version}
-```
+SJR can now be deployed from `spark-job-rest/spark-job-rest/target/scala-2.10/spark-job-rest.zip`
 
 If running from IDE fails with:
 ```
 Exception in thread "main" java.lang.NoClassDefFoundError: akka/actor/Props
 ```
-This happens because the spark dependency has the provided scope. In order to run from IDE you can remove the provided scope for the spark dependency(inside pom.xml) or you can add the spark assembly jar to the running classpath.
+This happens because the spark dependency has the provided scope. In order to run from IDE you can remove the provided scope (check `project/BuildSugar.scala`) for the spark dependency or you can add the spark assembly jar to the running classpath.
 
 ## Deploying Spark-Job-Rest
 
@@ -84,6 +65,16 @@ export SJR_DEPLOY_KEY=<optional path to your SSH key>
 export SJR_REMOTE_DEPLOY_PATH=<where you want to install Spark-Job-REST on remote host>
 ```
 If `SJR_REMOTE_DEPLOY_PATH` is not set then `SJR_DEPLOY_PATH` will be used during remote deploy.
+
+## Deploying from artifacts
+
+You can deploy by putting `spark-job-rest-server.zip` (with optional `spark-job-rest-sql.zip`) and `deploy.sh` to one directory. Then perform:
+
+```sh
+sh deploy.sh
+```
+
+That will extract everything to `<files location/spark-job-rest>` and set proper file permissions.
  
 ## Starting Spark-Job-Rest
 
@@ -119,7 +110,7 @@ To set how much memory should be allocated for driver use `driver.xmxMemory` (de
 
 Configure settings like web server port and akka system ports
 ```
-appConf{
+spark.job.rest.appConf{
   web.services.port=8097
   spark.ui.first.port = 16000
   ........
@@ -158,8 +149,8 @@ By default SJR uses `context.SparkContextFactory` which creates one Spark Contex
 To run jobs with provided SQL contexts include `spark-job-rest-sql` in your project, set context factory to one of SQLContext factories provided by this library and inherit your job from `api.SparkSqlJob`.
 Currently supported contexts:
 
-1. `context.SparkSqlContextFactory` creates simple job SQLContext.
-2. `context.HiveContextFactory` creates Hive SQL context.
+1. `spark.job.rest.context.SparkSqlContextFactory` creates simple job SQLContext.
+2. `spark.job.rest.context.HiveContextFactory` creates Hive SQL context.
 
 ## Configure Spark environment
 
@@ -233,7 +224,7 @@ Maven Spark-Job-Rest-Client dependency:
 <dependency>
     <groupId>com.xpatterns</groupId>
     <artifactId>spark-job-rest-client</artifactId>
-    <version>0.3.1</version>
+    <version>0.3.3</version>
 </dependency>
 ```
 
@@ -244,7 +235,7 @@ Add maven Spark-Job-Rest-Api dependency:
 <dependency>
     <groupId>com.xpatterns</groupId>
     <artifactId>spark-job-rest-api</artifactId>
-    <version>0.3.1</version>
+    <version>0.3.3</version>
 </dependency>
 ```
 
