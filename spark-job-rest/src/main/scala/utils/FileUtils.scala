@@ -26,12 +26,14 @@ object FileUtils {
    * @param overwrite whether overwrite existing folder or not.
    * @return
    */
-  def createFolder(folder: File, overwrite: Boolean) = {
+  def createFolder(folder: File, overwrite: Boolean): Boolean = {
     if(!folder.exists()) {
       folder.mkdirs()
     } else if (overwrite) {
       commons.io.FileUtils.deleteDirectory(folder)
       folder.mkdirs()
+    } else {
+      false
     }
   }
 
@@ -41,7 +43,7 @@ object FileUtils {
    * @param overwrite whether overwrite existing folder or not.
    * @return
    */
-  def createFolder(folder: String, overwrite: Boolean) = {
+  def createFolder(folder: String, overwrite: Boolean): Boolean = {
     val file = new File(folder)
     createFolder(file, overwrite)
   }

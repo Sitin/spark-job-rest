@@ -198,7 +198,7 @@ class Controller(val config: Config,
   /**
    * Contexts history returns extended information about all ever running contexts.
    */
-  def contextHistoryRoute: Route = pathPrefix("history/contexts") {
+  def contextHistoryRoute: Route = pathPrefix("history"/"contexts") {
     /**
      * Returns full information ([[ContextDetails]]) about given context by its ID.
      */

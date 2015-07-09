@@ -45,6 +45,9 @@ all: remove build deploy
 build:
 	@sbt clean package bundle
 
+incremental-build:
+	@sbt package bundle
+
 publish:
 	@BUILD_MARK=$(BUILD_MARK) sbt publish -Dsbt.log.noformat=true
 
