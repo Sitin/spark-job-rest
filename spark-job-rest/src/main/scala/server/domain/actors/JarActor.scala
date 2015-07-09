@@ -9,13 +9,11 @@ import org.slf4j.LoggerFactory
 import server.domain.actors.JarActor._
 import utils.{FileUtils, JarUtils}
 
-import scala.collection.mutable.ListBuffer
 import scala.util.{Failure, Success, Try}
 
 /**
- * Created by raduc on 04/11/14.
+ * Jar actor responsible for JARs manipulation.
  */
-
 object JarActor {
   case class AddJar(jarName: String, bytes: Array[Byte])
   case class NoSuchJar()
@@ -30,12 +28,8 @@ object JarActor {
   case class JarFolderExists()
   case class ResultJarsPathForAll(pathForClasspath: String, pathForSpark: List[String])
 
-
-
   val CLASSPATH_JAR_SEPARATOR = ":"
   val JAR_FOLDER_PROPERTY_PATH = "spark.job.rest.appConf.jars.path"
-
-
 }
 
 class JarActor(config: Config) extends Actor {
@@ -43,10 +37,10 @@ class JarActor(config: Config) extends Actor {
   val log = LoggerFactory.getLogger(getClass)
 
   val jarFolder = getValueFromConfig(config, JAR_FOLDER_PROPERTY_PATH, "")
-  FileUtils.createFolder(jarFolder, false)
+  FileUtils.createFolder(jarFolder, overwrite = false)
 
   override def receive: Receive = {
-    case AddJar(jarName, bytes) => {
+    case AddJar(jarName, bytes) =>
       log.info(s"Received AddJar request for jar $jarName")
       Try {
         if(!JarUtils.validateJar(bytes)){
@@ -55,18 +49,16 @@ class JarActor(config: Config) extends Actor {
         }
         FileUtils.writeToFile(jarName, jarFolder, bytes)
       } match {
-        case Success(v) => {
+        case Success(v) =>
           val fileJar = new File(jarFolder + File.separator + jarName)
           if(fileJar.exists()) {
             sender ! Success(JarInfo(jarName, fileJar.length(), fileJar.lastModified()))
           } else {
             sender ! Failure(new Exception("Jar was wrote to disk."))
           }
-        }
         case Failure(e) => sender ! Failure(e)
       }
-    }
-    case DeleteJar(jarName) => {
+    case DeleteJar(jarName) =>
       val file = new File(jarFolder + File.separator + jarName)
       if(file.exists()){
         file.delete()
@@ -74,8 +66,7 @@ class JarActor(config: Config) extends Actor {
       } else {
         sender ! NoSuchJar()
       }
-    }
-    case GetAllJars() => {
+    case GetAllJars() =>
       val folderJar = new File(jarFolder)
       val files = folderJar.listFiles()
       if(files != null){
@@ -84,8 +75,7 @@ class JarActor(config: Config) extends Actor {
       } else {
         sender ! List()
       }
-    }
-    case GetAllJarsNames() => {
+    case GetAllJarsNames() =>
       val folderJar = new File(jarFolder)
       val files = folderJar.listFiles()
       if(files != null){
@@ -94,27 +84,22 @@ class JarActor(config: Config) extends Actor {
       } else {
         sender ! List()
       }
-    }
-    case GetJarsPathForClasspath(path, contextName) => {
-
+    case GetJarsPathForClasspath(path, contextName) =>
       Try {
         getJarsPathForClasspath(path, contextName)
       } match {
-        case Success(path) => sender ! path
+        case Success(classPath) => sender ! classPath
         case Failure(e) => sender ! e
       }
-
-    }
-    case GetJarsPathForSpark(path) => {
+    case GetJarsPathForSpark(path) =>
       Try {
         sender ! getJarsPathForSpark(path)
       } match {
-        case Success(path) => sender ! path
+        case Success(classPath) => sender ! classPath
         case Failure(e) => sender ! e
       }
-    }
 
-    case GetJarsPathForAll(paths: String, contextName: String) => {
+    case GetJarsPathForAll(paths: String, contextName: String) =>
       Try {
         ResultJarsPathForAll(getJarsPathForClasspath(paths, contextName), getJarsPathForSpark(paths))
       } match {
@@ -122,37 +107,27 @@ class JarActor(config: Config) extends Actor {
         case Failure(e) => sender ! e
       }
 
-    }
-
-    case DeleteJarFolder() => {
+    case DeleteJarFolder() =>
       FileUtils.deleteFolder(jarFolder)
-    }
 
-    case CreateJarFolder(overwrite: Boolean) => {
+    case CreateJarFolder(overwrite: Boolean) =>
       FileUtils.createFolder(jarFolder, overwrite)
-    }
 
-    case JarFolderExists() => {
+    case JarFolderExists() =>
       val file = new File(jarFolder)
       sender ! file.exists()
-    }
   }
 
-
   def getJarsPathForSpark(path: String): List[String] = {
-    var jarSparkPathList = ListBuffer[String]()
-    path.split(",").foreach { x =>
-      jarSparkPathList += (JarUtils.getJarPathForSpark(x, jarFolder))
-    }
-    jarSparkPathList.toList
+    path.split(",") map { x: String =>
+      JarUtils.getJarPathForSpark(x, jarFolder)
+    } toList
   }
 
   def getJarsPathForClasspath(path: String, contextName: String) = {
-    var jarClasspath = ""
-    path.split(",").foreach { x =>
-      jarClasspath += JarUtils.getPathForClasspath(x, jarFolder, contextName) + CLASSPATH_JAR_SEPARATOR
-    }
-    jarClasspath.substring(0, jarClasspath.size - 1)
+    path.split(",") map { x =>
+      JarUtils.getPathForClasspath(x, jarFolder, contextName)
+    } mkString CLASSPATH_JAR_SEPARATOR
   }
 }
 

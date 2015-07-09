@@ -3,13 +3,13 @@ package utils
 import java.io.File
 
 /**
- * Created by raduchilom on 22/03/15.
+ * JAR's manipulation functions.
  */
 object JarUtils {
 
   def validateJar(bytes: Array[Byte]): Boolean = {
     // For now just check the first few bytes are the ZIP signature: 0x04034b50 little endian
-    if(bytes.size < 4 || bytes(0) != 0x50 || bytes(1) != 0x4b || bytes(2) != 0x03 || bytes(3) != 0x04){
+    if(bytes.length < 4 || bytes(0) != 0x50 || bytes(1) != 0x4b || bytes(2) != 0x03 || bytes(3) != 0x04){
       false
     } else {
       true
@@ -22,7 +22,7 @@ object JarUtils {
         path
       } else if (path.startsWith("hdfs")){
         val tempFolder = jarFolder + "tmp" + File.pathSeparator + contextName
-        FileUtils.createFolder(tempFolder, true)
+        FileUtils.createFolder(tempFolder, overwrite = true)
         HdfsUtils.copyJarFromHdfs(path, tempFolder)
         tempFolder + File.pathSeparator + getJarName(path)
       } else {
@@ -30,11 +30,12 @@ object JarUtils {
       }
 
     val diskFile = new File(diskPath)
-    if (diskFile.exists()) {
-      return diskPath
+
+    if (!diskFile.exists()) {
+      throw new Exception(s"Jar $path not found.")
     }
 
-    throw new Exception(s"Jar $path not found.")
+    diskFile.getAbsolutePath
   }
 
 

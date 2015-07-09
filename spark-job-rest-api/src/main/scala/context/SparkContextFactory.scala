@@ -11,11 +11,11 @@ import utils.ContextUtils.configToSparkConf
  */
 class SparkContextFactory extends JobContextFactory {
   type C = SparkContext with ContextLike
-  val logger = LoggerFactory.getLogger(getClass)
+  private val log = LoggerFactory.getLogger(getClass)
   
   def makeContext(config: Config, contextName: String) = {
     val sparkConf = configToSparkConf(config, contextName)
-    logger.info(s"Creating Spark context $contextName with config $sparkConf.")
+    log.info(s"Creating Spark context $contextName with config:\n${sparkConf.toDebugString}.")
     new SparkContext(sparkConf) with ContextLike {
       val contextClass = classOf[SparkContext].getName
       def sparkContext: SparkContext = this.asInstanceOf[SparkContext]

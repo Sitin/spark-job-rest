@@ -3,6 +3,7 @@ package persistence.services
 import api.entities.ContextDetails
 import api.entities.ContextState._
 import api.types._
+import com.typesafe.config.Config
 import config.durations
 import org.slf4j.LoggerFactory
 import persistence.schema.ColumnTypeImplicits._
@@ -56,6 +57,20 @@ object ContextPersistenceService {
     log.info(s"Updating context $contextId Spark UI port to $port.")
     val affectedContext = for { c <- contexts if c.id === contextId } yield c
     val updateQuery = affectedContext map (_.sparkUiPort) update Some(port)
+    Await.ready(db.run(updateQuery), dbTimeout.duration)
+  }
+
+  /**
+   * Synchronously persists context creation.
+   * @param contextId context's ID
+   * @param finalConfig config finally applied to context
+   * @param db database connection
+   */
+  def persistContextCreation(contextId: ID, finalConfig: Config, db: Database): Unit = {
+    log.info(s"Persisting context $contextId creation.")
+    val affectedContext = for { c <- contexts if c.id === contextId } yield c
+    val columnsToUpdate = affectedContext map (c => (c.state, c.details, c.finalConfig))
+    val updateQuery = columnsToUpdate update (Running, "Context created", Some(finalConfig))
     Await.ready(db.run(updateQuery), dbTimeout.duration)
   }
 

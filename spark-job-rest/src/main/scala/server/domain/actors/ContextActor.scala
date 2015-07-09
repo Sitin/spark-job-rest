@@ -198,6 +198,9 @@ class ContextActor(localConfig: Config) extends Actor with Stash {
         gracefullyShutdown()
       }
 
+    case _: Initialize =>
+      log.info(s"Received redundant Initialize message")
+
     case x @ _ =>
       log.info(s"Received UNKNOWN message: $x")
   }
@@ -221,7 +224,7 @@ class ContextActor(localConfig: Config) extends Actor with Stash {
   def initContext(config: Config, jarsForSpark: List[String]): Unit = {
     defaultConfig = config.withValue("spark.job.rest.context.jars", ConfigValueFactory.fromAnyRef(jarsForSpark.asJava))
     jobContext = JobContextFactory.makeContext(defaultConfig, contextName)
-    updateContextState(contextId, ContextState.Running, db, s"Created job context: $jobContext")
+    persistContextCreation(contextId, defaultConfig, db)
     log.info("Successfully initialized context " + contextName)
   }
 
