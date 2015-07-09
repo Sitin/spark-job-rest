@@ -168,12 +168,11 @@ function remove_server() {
     delete_server
 }
 
-function deploy_server() {
+function install_server() {
     echo "Deploing to ${SJR_DEPLOY_HOST}:${SJR_DEPLOY_PATH}"
     remove_server
     upload_files
     extract_package
-    start_server
 }
 
 function start_server() {
@@ -194,7 +193,7 @@ function server_log_context() {
 
 function show_help() {
     echo "Spark-Job-REST deployment tool"
-    echo "Usage: deploy.sh [deploy|start|stop|restart|log|log-context <context>|debug|debug-resolved]"
+    echo "Usage: deploy.sh [deploy|install|start|stop|restart|log|log-context <context>|debug|debug-resolved]"
 }
 
 function show_vars() {
@@ -210,7 +209,11 @@ function show_vars() {
 function main() {
     case "$CMD" in
     deploy) setup
-        deploy_server
+        install_server
+        start_server
+        ;;
+    install) setup
+        install_server
         ;;
     remove) setup
         remove_server

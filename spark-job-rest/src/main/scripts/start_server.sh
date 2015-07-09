@@ -14,6 +14,9 @@ get_abs_script_path
 
 parentdir="$(dirname "$appdir")"
 
+# From this variable depends whether server will be started in detached on in-process mode
+SJR_RUN_DETACHED="${SJR_RUN_DETACHED-true}"
+
 DRIVER_MEMORY=1g
 
 GC_OPTS="-XX:+UseConcMarkSweepGC
@@ -54,8 +57,10 @@ else
     echo "Warning! '$SPARK_CONF_HOME/spark-env.sh' is not exist. Check SPARK_CONF_HOME or create the file."
 fi
 
-
+# Create directories if not exist
 mkdir -p "${LOG_DIR}"
+mkdir -p "${JAR_PATH}"
+mkdir -p "${DATABASE_ROOT_DIR}"
 
 LOG_FILE="spark-job-rest.log"
 LOGGING_OPTS="-Dlog4j.configuration=log4j.properties
@@ -87,13 +92,25 @@ export DATABASE_ROOT_DIR
 export SPARK_JOB_REST_HOME="${appdir}/.."
 export SPARK_JOB_REST_CONTEXT_START_SCRIPT="${appdir}/../resources/context_start.sh"
 
-# Start application using `spark-submit` which takes cake of computing classpaths
-"${SPARK_HOME}/bin/spark-submit" \
-  --class $MAIN \
-  --driver-memory $DRIVER_MEMORY \
-  --conf "spark.executor.extraJavaOptions=${LOGGING_OPTS}" \
-  --conf "spark.driver.extraClassPath=${CLASSPATH}" \
-  --driver-java-options "${GC_OPTS} ${JAVA_OPTS} ${LOGGING_OPTS} ${CONFIG_OVERRIDES}" \
-  $@ "${parentdir}/${SJR_SERVER_JAR_NAME}" \
-  $conffile >> "${LOG_DIR}/${LOG_FILE}" 2>&1 &
-echo $! > "${appdir}/server.pid"
+function start_server() {
+    # Start application using `spark-submit` which takes cake of computing classpaths
+    "${SPARK_HOME}/bin/spark-submit" \
+      --class $MAIN \
+      --driver-memory $DRIVER_MEMORY \
+      --conf "spark.executor.extraJavaOptions=${LOGGING_OPTS}" \
+      --conf "spark.driver.extraClassPath=${CLASSPATH}" \
+      --driver-java-options "${GC_OPTS} ${JAVA_OPTS} ${LOGGING_OPTS} ${CONFIG_OVERRIDES}" \
+      $@ "${parentdir}/${SJR_SERVER_JAR_NAME}" \
+      $conffile >> "${LOG_DIR}/${LOG_FILE}" 2>&1
+}
+
+if [ "${SJR_RUN_DETACHED}" = "true" ]; then
+    start_server &
+    echo $! > "${appdir}/server.pid"
+    echo "Server started in detached mode. PID = "
+elif [ "${SJR_RUN_DETACHED}" = "false" ]; then
+    start_server
+else
+    echo "Wrong value for SJR_RUN_DETACHED = ${SJR_RUN_DETACHED}."
+    exit -1
+fi

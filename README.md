@@ -91,6 +91,10 @@ make start
 make stop
 ```
 
+### Run in non-detached mode
+
+By default server runs in detached mode. To turn it off simply set `SJR_RUN_DETACHED` to `false`.
+
 ## Configure Spark-job-rest
 
 Spark-Job-REST default configuration is stored in `resources/application.conf` (here and after under `spark-job-rest/src/main/`).
@@ -126,6 +130,7 @@ export SJR_LOG_DIR=<path to logs directory>
 export SJR_JAR_PATH=<path to jar files storage>
 export SJR_CONTEXTS_BASE_DIR=<path to the rood directory for contexts process directories>
 export JSR_EXTRA_CLASSPATH=<additional classes required for your application to run>
+export SJR_DATABASE_ROOT_DIR=<directory where database storage will be created>
 ```
 
 ### Java & GC options
