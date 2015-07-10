@@ -57,7 +57,8 @@ lazy val publishSettings = Seq(
       Some("snapshots" at s"$nexusURL/content/repositories/snapshots")
     else
       Some("releases" at s"$nexusURL/content/repositories/releases")
-  }
+  },
+  publish <<= publish.dependsOn(test in Test)
 )
 
 lazy val noPublishSettings = Seq(
