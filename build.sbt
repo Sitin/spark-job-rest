@@ -30,13 +30,17 @@ lazy val root = project.in(file("."))
     `spark-job-rest-server`,
     `spark-job-rest-api`,
     `spark-job-rest-client`,
-    `spark-job-rest-sql`
+    `spark-job-rest-sql`,
+    `example-job`,
+    `s3-download-job`
   )
   .dependsOn(
     `spark-job-rest-server`,
     `spark-job-rest-api`,
     `spark-job-rest-client`,
-    `spark-job-rest-sql`
+    `spark-job-rest-sql`,
+    `example-job`,
+    `s3-download-job`
   )
   .disablePlugins(AssemblyPlugin)
   .settings(commonSettings: _*)
@@ -61,6 +65,10 @@ lazy val publishSettings = Seq(
     else
       Some("releases" at s"$nexusURL/content/repositories/releases")
   }
+)
+
+lazy val noPublishSettings = Seq(
+  publish := {}
 )
 
 lazy val assemblySettings = Seq(
@@ -133,6 +141,24 @@ lazy val `spark-job-rest-client` = project.in(file("spark-job-rest-client"))
       "com.typesafe" % "config" % typesafeConfigVersion,
       "org.slf4j" % "slf4j-api" % "1.7.10",
       "com.typesafe.akka" %% "akka-actor" % akkaVersion
+    )
+  )
+
+lazy val `example-job` = project.in(file("examples/example-job"))
+  .dependsOn(`spark-job-rest-api`)
+  .settings(commonSettings: _*)
+  .settings(publishSettings: _*)
+  .settings(
+    libraryDependencies ++= sparkDependencies
+  )
+
+lazy val `s3-download-job` = project.in(file("examples/s3-download-job"))
+  .dependsOn(`spark-job-rest-api`, `spark-job-rest-client`)
+  .settings(commonSettings: _*)
+  .settings(publishSettings: _*)
+  .settings(
+    libraryDependencies ++= sparkDependencies ++ httpConponentDependencies ++ Seq(
+      "com.amazonaws" % "aws-java-sdk" % "1.8.3"
     )
   )
 
