@@ -2,7 +2,7 @@ package utils
 
 import akka.actor.ActorRef
 import akka.pattern.ask
-import config.durations
+import config.durations.Durations
 import org.slf4j.LoggerFactory
 import persistence.slickWrapper.Driver.api.Database
 import server.domain.actors.messages._
@@ -11,9 +11,9 @@ import scala.annotation.tailrec
 import scala.concurrent.{Await, TimeoutException}
 import scala.util.{Failure, Success, Try}
 
-object DatabaseUtils {
-  private implicit lazy val timeout = durations.db.connection.timeout
-  private lazy val maxReties = durations.db.connection.tries
+trait DatabaseUtils extends Durations {
+  private implicit def timeout = durations.db.connection.timeout
+  private def maxReties = durations.db.connection.tries
   private val log = LoggerFactory.getLogger(getClass)
 
   /**

@@ -10,16 +10,15 @@ import api.entities.{ContextDetails, ContextState, Jars}
 import api.responses.{Context, Contexts}
 import api.types._
 import com.typesafe.config.{Config, ConfigFactory}
-import config.durations
+import config.durations.AskTimeout
 import org.apache.commons.lang.exception.ExceptionUtils
 import org.slf4j.LoggerFactory
-import persistence.services.ContextPersistenceService._
+import persistence.services.ContextPersistenceService
 import persistence.slickWrapper.Driver.api._
 import server.domain.actors.ContextManagerActor._
 import server.domain.actors.JarActor.{GetJarsPathForAll, ResultJarsPathForAll}
 import server.domain.actors.messages.IsAwake
-import utils.ActorUtils
-import utils.DatabaseUtils.dbConnection
+import utils.{ActorUtils, DatabaseUtils}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -50,7 +49,8 @@ object ContextManagerActor {
  * @param defaultConfig configuration defaults
  * @param jarActor actor that responsible for jars which may be included to context classpath
  */
-class ContextManagerActor(defaultConfig: Config, jarActor: ActorRef, connectionProviderActor: ActorRef) extends Actor {
+class ContextManagerActor(defaultConfig: Config, jarActor: ActorRef, connectionProviderActor: ActorRef)
+  extends Actor with ContextPersistenceService with DatabaseUtils with AskTimeout {
 
   val log = LoggerFactory.getLogger(getClass)
 

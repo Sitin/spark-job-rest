@@ -8,11 +8,10 @@ package object config {
    * Default application configuration.
    * Loads deployment configuration `deploy.conf` on top of application defaults `application.conf`
    */
-  lazy val default = ConfigFactory.load("deploy").withFallback(ConfigFactory.load())
+  lazy val defaultApplicationConfig = ConfigFactory.load("deploy").withFallback(ConfigFactory.load())
 
   /**
    * Master application configuration.
-   *
    */
-  lazy val master = default.getConfig("spark.job.rest.manager")
+  lazy val masterApplicationConfig = defaultApplicationConfig.getConfig("spark.job.rest.manager")
 }

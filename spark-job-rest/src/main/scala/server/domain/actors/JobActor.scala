@@ -4,13 +4,14 @@ import akka.actor.{Actor, ActorRef, ActorSelection}
 import akka.pattern.ask
 import api.types.ID
 import com.typesafe.config.Config
+import config.durations.AskTimeout
 import org.joda.time.{DateTime, DateTimeZone}
 import org.slf4j.LoggerFactory
-import persistence.services.JobPersistenceService.persistJobFailure
+import persistence.services.JobPersistenceService
 import persistence.slickWrapper.Driver.api.Database
 import server.domain.actors.ContextManagerActor.{GetContext, NoSuchContext}
 import server.domain.actors.JobActor._
-import utils.DatabaseUtils._
+import utils.DatabaseUtils
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -34,7 +35,8 @@ object JobActor {
  * @param config job config
  * @param contextManagerActor context manager
  */
-class JobActor(val config: Config, contextManagerActor: ActorRef, connectionProviderActor: ActorRef) extends Actor {
+class JobActor(val config: Config, contextManagerActor: ActorRef, connectionProviderActor: ActorRef)
+  extends Actor with JobPersistenceService with DatabaseUtils with AskTimeout {
 
   val log = LoggerFactory.getLogger(getClass)
 

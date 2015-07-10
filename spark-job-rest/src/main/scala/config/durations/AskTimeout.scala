@@ -1,8 +1,10 @@
 package config.durations
 
 /**
- * Injects default timeout
+ * Injects default timeout.
+ *
+ * This should comes last in extends/with chain to be applied as an implicit
  */
-trait AskTimeout {
-  implicit val timeout = ask.timeout
+trait AskTimeout extends Durations {
+  implicit def timeout = durations.ask.timeout
 }

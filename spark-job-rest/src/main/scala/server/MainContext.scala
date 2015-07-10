@@ -1,7 +1,7 @@
 package server
 
 import akka.actor.{ActorSystem, Props}
-import config.default
+import config.defaultApplicationConfig
 import logging.LoggingOutputStream
 import org.slf4j.LoggerFactory
 import server.domain.actors.ContextActor
@@ -22,7 +22,7 @@ object MainContext {
     log.info(s"Started new process for contextName = $contextName with port = $port")
 
     // Use default config as a base
-    val defaultConfig = default
+    val defaultConfig = defaultApplicationConfig
     val config = ActorUtils.remoteConfig("localhost", port, defaultConfig)
     val system = ActorSystem(ActorUtils.PREFIX_CONTEXT_SYSTEM + contextName, config)
 

@@ -8,8 +8,7 @@ import api.json.JsonProtocol._
 import api.responses._
 import com.typesafe.config.{Config, ConfigFactory}
 import org.slf4j.LoggerFactory
-import persistence.services.ContextPersistenceService._
-import persistence.services.JobPersistenceService._
+import persistence.services.{ContextPersistenceService, JobPersistenceService}
 import server.domain.actors.ContextActor.FailedInit
 import server.domain.actors.ContextManagerActor._
 import server.domain.actors.JarActor._
@@ -18,7 +17,7 @@ import server.domain.actors.getValueFromConfig
 import spray.http._
 import spray.httpx.SprayJsonSupport.sprayJsonMarshaller
 import spray.routing.{Route, SimpleRoutingApp}
-import utils.DatabaseUtils.dbConnection
+import utils.DatabaseUtils
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -32,7 +31,9 @@ class Controller(val config: Config,
                  jobManagerActor: ActorRef,
                  jarActor: ActorRef,
                  connectionProviderActor: ActorRef,
-                 originalSystem: ActorSystem) extends SimpleRoutingApp with CORSDirectives {
+                 originalSystem: ActorSystem)
+  extends SimpleRoutingApp
+  with CORSDirectives with ContextPersistenceService with JobPersistenceService with DatabaseUtils {
 
   implicit val system = originalSystem
   implicit val timeout: Timeout = 60.seconds

@@ -6,7 +6,7 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
-import config.durations
+import config.durations.Durations
 import org.slf4j.LoggerFactory
 import server.domain.actors._
 import server.domain.actors.messages.{Initialized, IsInitialized}
@@ -16,12 +16,41 @@ import scala.concurrent.{Await, TimeoutException}
 import scala.util.{Success, Try}
 
 
-object ActorUtils {
+trait ActorUtils extends Durations {
   private val log = LoggerFactory.getLogger(getClass)
 
-  private val askTimeout = durations.init.timeout
-  private val reTries = durations.init.tries
+  private lazy val askTimeout = durations.init.timeout
+  private lazy val reTries = durations.init.tries
 
+  /**
+   * Blocks until actor will be initialized
+   * @param actor actor reference
+   * @param timeout timeout for each ask attempt
+   * @param tries how many attempt should
+   */
+  @tailrec
+  final def awaitActorInitialization(actor: ActorRef, timeout: Timeout = askTimeout, tries: Int = reTries): Unit = tries match {
+    case 0 =>
+      throw new RuntimeException(s"Refused to wait for actor $actor initialization.")
+    case _ =>
+      implicit val askTimeout = timeout
+      val future = actor ? IsInitialized
+      // Await for future
+      try { Await.ready(future, timeout.duration) }
+      // Ignore timeout
+      catch { case _: TimeoutException => }
+      // Return if actor initialized or retry
+      future.value.getOrElse(None) match {
+        case Success(Initialized) =>
+        case _ =>
+          log.info(s"Actor $actor is not responding. Retrying.")
+          awaitActorInitialization(actor, timeout, tries - 1)
+      }
+  }
+}
+
+
+object ActorUtils {
   val PREFIX_CONTEXT_ACTOR = "A-"
   val PREFIX_CONTEXT_SYSTEM = "S-"
 
@@ -75,31 +104,5 @@ object ActorUtils {
       }"""
 
     ConfigFactory.parseString(configStr).withFallback(commonConfig)
-  }
-
-  /**
-   * Blocks until actor will be initialized
-   * @param actor actor reference
-   * @param timeout timeout for each ask attempt
-   * @param tries how many attempt should
-   */
-  @tailrec
-  final def awaitActorInitialization(actor: ActorRef, timeout: Timeout = askTimeout, tries: Int = reTries): Unit = tries match {
-    case 0 =>
-      throw new RuntimeException(s"Refused to wait for actor $actor initialization.")
-    case _ =>
-      implicit val askTimeout = timeout
-      val future = actor ? IsInitialized
-      // Await for future
-      try { Await.ready(future, timeout.duration) }
-      // Ignore timeout
-      catch { case _: TimeoutException => }
-      // Return if actor initialized or retry
-      future.value.getOrElse(None) match {
-        case Success(Initialized) =>
-        case _ =>
-          log.info(s"Actor $actor is not responding. Retrying.")
-          awaitActorInitialization(actor, timeout, tries - 1)
-      }
   }
 }

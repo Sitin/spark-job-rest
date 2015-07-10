@@ -6,7 +6,7 @@ import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfter, MustMatchers, WordSpec}
 import persistence.schema._
-import persistence.services.ContextPersistenceService._
+import persistence.services.ContextPersistenceService
 import persistence.slickWrapper.Driver.api._
 import test.durations.{dbTimeout, timeLimits}
 import test.fixtures
@@ -18,7 +18,10 @@ import scala.concurrent.Await
  * Test suit for database schema: [[schema]]
  */
 @RunWith(classOf[JUnitRunner])
-class ContextPersistenceServiceSpec extends WordSpec with MustMatchers with BeforeAndAfter with TimeLimitedTests {
+class ContextPersistenceServiceSpec
+  extends WordSpec
+  with MustMatchers with BeforeAndAfter with TimeLimitedTests with ContextPersistenceService {
+
   val timeLimit = timeLimits.dbTest
 
   val config = fixtures.applicationConfig

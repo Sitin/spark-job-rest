@@ -6,17 +6,16 @@ import api.entities.ContextState
 import api.types.ID
 import com.google.gson.Gson
 import com.typesafe.config.{Config, ConfigValueFactory}
+import config.durations.AskTimeout
 import context.JobContextFactory
 import org.apache.commons.lang.exception.ExceptionUtils
 import org.slf4j.LoggerFactory
-import persistence.services.ContextPersistenceService._
-import persistence.services.JobPersistenceService._
+import persistence.services.{ContextPersistenceService, JobPersistenceService}
 import persistence.slickWrapper.Driver.api._
 import server.domain.actors.ContextActor._
 import server.domain.actors.JobActor._
 import server.domain.actors.messages.IsAwake
-import utils.ActorUtils
-import utils.DatabaseUtils.dbConnection
+import utils.{ActorUtils, DatabaseUtils}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -37,15 +36,11 @@ object ContextActor {
  * Context actor responsible for creation and managing Spark Context
  * @param localConfig config of the context application
  */
-class ContextActor(localConfig: Config) extends Actor with Stash {
+class ContextActor(localConfig: Config) extends Actor
+  with Stash with ContextPersistenceService with JobPersistenceService with DatabaseUtils with AskTimeout {
   import context.become
 
   val log = LoggerFactory.getLogger(getClass)
-
-  /**
-   * Set config for configurable traits
-   */
-  val config = localConfig
 
   /**
    * Spark job context which may be either directly [[org.apache.spark.SparkContext]]
@@ -54,9 +49,10 @@ class ContextActor(localConfig: Config) extends Actor with Stash {
   var jobContext: ContextLike = _
 
   /**
-   * Config which will be used as a defaults for jobs running on this context
+   * Config which will be used as a defaults for jobs running on this context.
+   * Starting value is a local application config.
    */
-  var defaultConfig: Config = _
+  var config: Config = localConfig
 
   /**
    * Spark application name
@@ -83,7 +79,12 @@ class ContextActor(localConfig: Config) extends Actor with Stash {
    */
   val gsonTransformer = new Gson()
 
-  startWatchingManagerActor()
+  /**
+   * Actor initialisation
+   */
+  override def preStart(): Unit = {
+    startWatchingManagerActor()
+  }
 
   /**
    * Context cleanup
@@ -103,7 +104,7 @@ class ContextActor(localConfig: Config) extends Actor with Stash {
     case Initialize(name, id, remoteConnectionProvider, contextConfig, jarsForSpark) =>
       // Stash all messages to process them later
       stash()
-      
+
       contextName = name
       contextId = id
 
@@ -155,13 +156,13 @@ class ContextActor(localConfig: Config) extends Actor with Stash {
             case SparkJobInvalid(message) => throw new IllegalArgumentException(s"Invalid job $jobId: $message")
           }
 
-          val jobConfigValidation = sparkJob.validate(jobContext.asInstanceOf[sparkJob.C], jobConfig.withFallback(defaultConfig))
+          val jobConfigValidation = sparkJob.validate(jobContext.asInstanceOf[sparkJob.C], jobConfig.withFallback(config))
           jobConfigValidation match {
             case SparkJobInvalid(message) => throw new IllegalArgumentException(message)
             case SparkJobValid => log.info("Job config validation passed.")
           }
 
-          val finalJobConfig = jobConfig.withFallback(defaultConfig)
+          val finalJobConfig = jobConfig.withFallback(config)
           persistJobStart(jobId, contextName, contextId, finalJobConfig, db)
 
           sparkJob.runJob(jobContext.asInstanceOf[sparkJob.C], finalJobConfig)
@@ -210,21 +211,21 @@ class ContextActor(localConfig: Config) extends Actor with Stash {
    * @param remoteConnectionProvider reference to connection provider actor
    */
   def initDbConnection(remoteConnectionProvider: ActorRef): Unit = {
-    connectionProvider = context.actorOf(Props(new DatabaseConnectionActor(remoteConnectionProvider, config)))
+    connectionProvider = context.actorOf(Props(new DatabaseConnectionActor(remoteConnectionProvider, localConfig)))
     db = dbConnection(connectionProvider)
     log.info(s"Obtained connection to database: $db")
   }
 
   /**
    * Prepares config and initializes context
-   * @param config submitted context
+   * @param submittedConfig submitted context
    * @param jarsForSpark jars to be included
    * @throws Throwable anything that may happen during context creation
    */
-  def initContext(config: Config, jarsForSpark: List[String]): Unit = {
-    defaultConfig = config.withValue("spark.job.rest.context.jars", ConfigValueFactory.fromAnyRef(jarsForSpark.asJava))
-    jobContext = JobContextFactory.makeContext(defaultConfig, contextName)
-    persistContextCreation(contextId, defaultConfig, db)
+  def initContext(submittedConfig: Config, jarsForSpark: List[String]): Unit = {
+    config = submittedConfig.withValue("spark.job.rest.context.jars", ConfigValueFactory.fromAnyRef(jarsForSpark.asJava))
+    jobContext = JobContextFactory.makeContext(config, contextName)
+    persistContextCreation(contextId, config, db)
     log.info("Successfully initialized context " + contextName)
   }
 
@@ -233,6 +234,9 @@ class ContextActor(localConfig: Config) extends Actor with Stash {
     context.system.shutdown()
   }
 
+  /**
+   * Connect to manager actor and watch it's state.
+   */
   def startWatchingManagerActor() = {
     val managerPort = getValueFromConfig(localConfig, ActorUtils.PORT_PROPERTY_NAME, 4042)
     val managerHost = getValueFromConfig(localConfig, ActorUtils.HOST_PROPERTY_NAME, "127.0.0.1")

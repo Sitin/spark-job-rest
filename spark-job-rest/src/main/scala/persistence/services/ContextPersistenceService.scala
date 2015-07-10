@@ -4,7 +4,7 @@ import api.entities.ContextDetails
 import api.entities.ContextState._
 import api.types._
 import com.typesafe.config.Config
-import config.durations
+import config.durations.Durations
 import org.slf4j.LoggerFactory
 import persistence.schema.ColumnTypeImplicits._
 import persistence.schema._
@@ -16,10 +16,10 @@ import scala.concurrent.{Await, Future}
 /**
  * Collection of methods for persisting context entities
  */
-object ContextPersistenceService {
+trait ContextPersistenceService extends Durations {
   private val log = LoggerFactory.getLogger(getClass)
 
-  private val dbTimeout = durations.db.timeout
+  private lazy val dbTimeout = durations.db.timeout
 
   /**
    * Inserts new context to database

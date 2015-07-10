@@ -1,7 +1,7 @@
 package persistence
 
 import com.typesafe.config.Config
-import config.durations
+import config.durations.Durations
 import org.h2.tools.Server
 import org.slf4j.LoggerFactory
 import persistence.slickWrapper.Driver.api._
@@ -21,7 +21,7 @@ object DatabaseServer {
  * This class responsible for database server life cycle.
  * @param config application config
  */
-class DatabaseServer(config: Config) {
+class DatabaseServer(val config: Config) extends Durations {
   import DatabaseServer._
 
   implicit val timeout = durations.db.initializationTimeout

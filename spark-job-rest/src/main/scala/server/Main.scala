@@ -3,25 +3,30 @@ package server
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import config.durations.AskTimeout
-import config.{default, master}
+import config.{defaultApplicationConfig, masterApplicationConfig}
 import logging.LoggingOutputStream
 import server.domain.actors._
-import utils.ActorUtils.awaitActorInitialization
+import utils.ActorUtils
 
 import scala.concurrent.Await
 
 /**
  * Spark-Job-REST entry point.
  */
-object Main extends AskTimeout {
+object Main extends ActorUtils with AskTimeout {
   LoggingOutputStream.redirectConsoleOutput
 
-  def main(args: Array[String]) {
-    // Use default config as a base
-    val config = default
-    // Get master config
-    val masterConfig = master
+  // Use default config as a base
+  val config = defaultApplicationConfig
 
+  // Get master config
+  val masterConfig = masterApplicationConfig
+
+  // Construct config-dependent utils
+//  val utils = new Configured(config) with ActorUtils with AskTimeout
+//  import utils._
+
+  def main(args: Array[String]) {
     val system = ActorSystem("ManagerSystem", masterConfig)
 
     val supervisor = system.actorOf(Props(classOf[Supervisor]), "Supervisor")
@@ -29,7 +34,7 @@ object Main extends AskTimeout {
     // Database server actor will instantiate database and ensures that schema is created
     val databaseServerActor = createActor(Props(new DatabaseServerActor(config)), "DatabaseServerActor", system, supervisor)
     // We should wait for this actor to be initialized before proceed
-    awaitActorInitialization(databaseServerActor)
+    awaitActorInitialization(databaseServerActor, durations.init.timeout, durations.init.tries)
 
     val jarActor = createActor(Props(new JarActor(config)), "JarActor", system, supervisor)
     val contextManagerActor = createActor(Props(new ContextManagerActor(config, jarActor, databaseServerActor)), "ContextManager", system, supervisor)

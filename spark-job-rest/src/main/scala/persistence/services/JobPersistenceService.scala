@@ -4,7 +4,7 @@ import api.entities.JobDetails
 import api.entities.JobState._
 import api.types._
 import com.typesafe.config.Config
-import config.durations
+import config.durations.Durations
 import org.joda.time.{DateTime, DateTimeZone}
 import org.slf4j.LoggerFactory
 import persistence.schema.ColumnTypeImplicits._
@@ -17,10 +17,10 @@ import scala.concurrent.{Await, Future}
 /**
  * Collection of methods for persisting job entities
  */
-object JobPersistenceService {
+trait JobPersistenceService extends Durations {
   private val log = LoggerFactory.getLogger(getClass)
 
-  private val dbTimeout = durations.db.timeout
+  private def dbTimeout = durations.db.timeout
 
   /**
    * Inserts new job to database
