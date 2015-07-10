@@ -6,9 +6,6 @@ CURRENT_DIR := $(shell pwd)
 # Deploy script
 DEPLOY_SCRIPT = $(CURRENT_DIR)/src/main/resources/deploy.sh
 #
-# Default path to the tarball
-PACKAGE_PATH := $(CURRENT_DIR)/spark-job-rest/target/spark-job-rest.tar.gz
-#
 # Override this to set deploy path
 SJR_DEPLOY_PATH ?= $(CURRENT_DIR)/deploy-test
 

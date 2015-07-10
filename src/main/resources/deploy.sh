@@ -36,6 +36,14 @@ function setup_defaults() {
         SJR_DEPLOY_PATH="${CDIR}/spark-job-rest"
     fi
 
+    # If server package is set but not exists we must exit with error
+    if [ ! "${SJR_PACKAGE_PATH}" = "" ]; then
+        if [ ! -f "${SJR_PACKAGE_PATH}" ]; then
+            echo "Extras package path is set but file is not exists: '${SJR_PACKAGE_PATH}'"
+            exit -1
+        fi
+    fi
+
     #
     # Default package path is a bundle under project directory.
     # If id doesn't exists then package looked up in the same directory as deploy script
@@ -50,10 +58,12 @@ function setup_defaults() {
         SJR_PACKAGE_PATH="${DEFAULT_PACKAGE_PATH}"
     fi
 
-    # Absence of server package is an error
-    if [ ! -f "${SJR_PACKAGE_PATH}" ]; then
-        echo "Server package path is not accessible. Last tried: '${SJR_PACKAGE_PATH}'"
-        exit -1
+    # If extras package is set but not exists we must exit with error
+    if [ ! "${SJR_EXTRAS_PATH}" = "" ]; then
+        if [ ! -f "${SJR_EXTRAS_PATH}" ]; then
+            echo "Extras package path is set but file is not exists: '${SJR_EXTRAS_PATH}'"
+            exit -1
+        fi
     fi
 
     #
@@ -67,14 +77,6 @@ function setup_defaults() {
     # Set empty extras package path to default
     if [ -z "${SJR_EXTRAS_PATH}" ]; then
         SJR_EXTRAS_PATH="${DEFAULT_EXTRAS_PACKAGE_PATH}"
-    fi
-
-    # If extras package is set but not exists we must exit with error
-    if [ ! "${SJR_EXTRAS_PATH}" = "" ]; then
-        if [ ! -f "${SJR_EXTRAS_PATH}" ]; then
-            echo "Extras package path is set but file is not exists: '${SJR_EXTRAS_PATH}'"
-            exit -1
-        fi
     fi
 }
 

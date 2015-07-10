@@ -7,7 +7,7 @@ import persistence.slickWrapper.Driver.api._
  * Actor specific messages should be defined in it's container object.
  * If at least 2 actors receive one message it SHOULD be moved here.
  */
-package object messages {
+object messages {
   /**
    * Sent when actor is not initialized but requested for something
    */

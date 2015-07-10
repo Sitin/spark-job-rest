@@ -1,6 +1,6 @@
-import BuildSugar._
 import BuildVersion._
 import Bundle._
+import DependenciesSugar._
 
 net.virtualvoid.sbt.graph.Plugin.graphSettings
 
@@ -27,14 +27,6 @@ resolvers ++= Seq(
 
 lazy val root = project.in(file("."))
   .aggregate(
-    `spark-job-rest-server`,
-    `spark-job-rest-api`,
-    `spark-job-rest-client`,
-    `spark-job-rest-sql`,
-    `example-job`,
-    `s3-download-job`
-  )
-  .dependsOn(
     `spark-job-rest-server`,
     `spark-job-rest-api`,
     `spark-job-rest-client`,
@@ -123,11 +115,11 @@ lazy val `spark-job-rest-sql` = project.in(file("spark-job-rest-sql"))
   .dependsOn(`spark-job-rest-api`)
   .settings(assemblyBundleArtifact("spark-job-rest-sql"))
   .settings(
-    libraryDependencies ++= sparkDependencies ++ commonTestDependencies ++ asProvided(Seq(
+    libraryDependencies ++= sparkDependencies ++ commonTestDependencies ++ asSparkSqlDependencies(asProvided(Seq(
       "org.apache.spark" %% "spark-sql" % sparkVersion,
       "org.apache.spark" %% "spark-hive" % sparkVersion,
       "com.typesafe" % "config" % typesafeConfigVersion
-    ))
+    )))
   )
 
 lazy val `spark-job-rest-client` = project.in(file("spark-job-rest-client"))
