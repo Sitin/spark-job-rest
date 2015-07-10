@@ -3,9 +3,12 @@ package test
 import api.entities.{ContextDetails, ContextState, Jars, JobDetails}
 import com.typesafe.config.ConfigFactory
 
-package object fixtures {
+/**
+ * Fixtures for Spark-Job-REST
+ */
+object fixtures {
   /**
-   * Any config we may load from test resources 
+   * Any config we may load from test resources
    */
   val applicationConfig = ConfigFactory.load()
 
