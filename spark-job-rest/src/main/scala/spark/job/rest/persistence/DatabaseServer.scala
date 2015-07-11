@@ -48,12 +48,18 @@ class DatabaseServer(val config: Config) extends Durations {
     else
       System.getProperty("user.dir") + s"/$path"
   }
+  
+  val getAvailablePort = {
+    val port = findAvailablePort(config.getInt(portConfigEntry))
+    log.info(s"Found available port for database server: $port")
+    port
+  }
 
   /**
    * Instantiates database server from [[org.h2.server.TcpServer]]
    */
   val server = Server.createTcpServer(
-    "-tcpPort", findAvailablePort(config.getInt(portConfigEntry)).toString,
+    "-tcpPort", getAvailablePort.toString,
     "-baseDir", baseDir
   )
 

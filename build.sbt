@@ -69,11 +69,22 @@ lazy val assemblySettings = Seq(
   test in assembly := {}
 )
 
+lazy val excludeServerResources = Seq(
+  assemblyMergeStrategy in assembly := {
+    case PathList("deploy.conf") => MergeStrategy.discard
+    case PathList("deploy-settings.sh") => MergeStrategy.discard
+    case x =>
+      val oldStrategy = (assemblyMergeStrategy in assembly).value
+      oldStrategy(x)
+  }
+)
+
 lazy val `spark-job-rest-server` = project.in(file("spark-job-rest"))
   .dependsOn(`spark-job-rest-api`, `spark-job-rest-client`)
   .settings(commonSettings: _*)
   .settings(publishSettings: _*)
   .settings(assemblySettings: _*)
+  .settings(excludeServerResources: _*)
   .settings(assemblyBundleArtifact("spark-job-rest-server"))
   .settings(
     fork in test := true,

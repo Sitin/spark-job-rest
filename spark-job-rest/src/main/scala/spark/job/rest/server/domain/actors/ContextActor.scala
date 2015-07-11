@@ -145,11 +145,18 @@ class ContextActor(localConfig: Config) extends Actor
     case RunJob(runningClass, _, jobConfig, jobId) =>
       log.info(s"Received RunJob message : runningClass=$runningClass contextName=$contextName uuid=$jobId ")
       val contextManager = sender()
+
       val jobExecutionFuture = Future {
         Try {
-          val classLoader = Thread.currentThread.getContextClassLoader
-          val runnableClass = classLoader.loadClass(runningClass)
-          val sparkJob = runnableClass.newInstance.asInstanceOf[SparkJobBase]
+          // Create job instance
+          val sparkJob = try {
+            val classLoader = Thread.currentThread.getContextClassLoader
+            val runnableClass = classLoader.loadClass(runningClass)
+            runnableClass.newInstance.asInstanceOf[SparkJobBase]
+          } catch {
+            // Job instantiation error is not fatal for the context
+            case e: Throwable => throw new Exception("Job instantiation error", e)
+          }
 
           jobContext.validateJob(sparkJob) match {
             case SparkJobValid => log.info(s"Job $jobId passed context validation.")
