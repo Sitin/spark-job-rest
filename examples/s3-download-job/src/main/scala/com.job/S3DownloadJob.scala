@@ -1,9 +1,9 @@
 package com.job
 
-import api.{SparkJob, SparkJobInvalid, SparkJobValid, SparkJobValidation}
 import com.typesafe.config.Config
 import org.apache.spark.SparkContext
 import org.slf4j.LoggerFactory
+import spark.job.rest.api.{SparkJob, SparkJobInvalid, SparkJobValid, SparkJobValidation}
 
 import scala.collection.mutable.ListBuffer
 import scala.util.{Failure, Success, Try}

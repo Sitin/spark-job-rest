@@ -16,7 +16,7 @@ object BuildVersion {
   }
 
   lazy val isSnapshot = Try(System.getenv("IS_RELEASE").trim != "true").getOrElse(true)
-  lazy val releaseVersion = "0.3.3-DR"
+  lazy val releaseVersion = "0.4.0-DR"
 
   lazy val buildMark = Try(System.getenv("BUILD_MARK").trim).getOrElse("")
   lazy val snapshotMark = if (isSnapshot) "SNAPSHOT" else ""

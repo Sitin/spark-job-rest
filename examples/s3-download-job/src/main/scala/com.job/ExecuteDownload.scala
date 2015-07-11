@@ -1,8 +1,8 @@
 package com.job
 
 import akka.actor.ActorSystem
-import api.entities.JobState
-import client.SparkJobRestClient
+import spark.job.rest.api.entities.JobState
+import spark.job.rest.client.SparkJobRestClient
 
 /**
  * Entry point for running [[S3DownloadJob]] on Spark-Job-REST

@@ -1,8 +1,8 @@
 package com.job
 
-import api.{SparkJob, SparkJobInvalid, SparkJobValid, SparkJobValidation}
 import com.typesafe.config.Config
 import org.apache.spark.SparkContext
+import spark.job.rest.api.{SparkJob, SparkJobInvalid, SparkJobValid, SparkJobValidation}
 
 /**
  * Very basic Spark Job REST job example

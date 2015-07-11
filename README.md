@@ -147,7 +147,7 @@ GC_OPTS="${GC_OPTS}
 ## Custom contexts
 
 Spark-Job-REST supports custom job context factories defined in `context.job-context-factory` property of config.
-By default SJR uses `context.SparkContextFactory` which creates one Spark Context per JVM.
+By default SJR uses `SparkContextFactory` which creates one Spark Context per JVM.
 
 ### SQL contexts
 
@@ -155,7 +155,7 @@ To run jobs with provided SQL contexts include `spark-job-rest-sql` in your proj
 Currently supported contexts:
 
 1. `spark.job.rest.context.SparkSqlContextFactory` creates simple job SQLContext.
-2. `spark.job.rest.context.HiveContextFactory` creates Hive SQL context.
+2. `spark.job.rest.HiveContextFactory` creates Hive SQL context.
 
 ## Configure Spark environment
 
@@ -249,7 +249,7 @@ To create a job that can be submitted through the server, the class must impleme
 ```scala
 import com.typesafe.config.Config
 import org.apache.spark.SparkContext
-import api.{SparkJobInvalid, SparkJobValid, SparkJobValidation, SparkJob}
+import spark.job.rest.api.{SparkJobInvalid, SparkJobValid, SparkJobValidation, SparkJob}
 
 class Example extends SparkJob {
     override def runJob(sc:SparkContext, jobConfig: Config): Any = { ... }
