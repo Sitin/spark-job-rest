@@ -5,12 +5,12 @@ set -e
 get_abs_script_path() {
   pushd . >/dev/null
   cd $(dirname $0)
-  appdir=$(pwd)
+  SCRIPTS_DIR=$(pwd)
   popd  >/dev/null
 }
 get_abs_script_path
 
-parentdir="$(dirname "$appdir")"
+APP_DIR="$(dirname "${SCRIPTS_DIR}")"
 
 classpathParam=$1
 contextName=$2
@@ -18,13 +18,13 @@ port=$3
 xmxMemory=$4
 processDir=$5
 
-echo "classpathParam = $classpathParam"
-echo "contextName = $contextName"
-echo "port = $port"
+echo "classpathParam = ${classpathParam}"
+echo "contextName = ${contextName}"
+echo "port = ${port}"
 
 
 GC_OPTS="-XX:+UseConcMarkSweepGC
-         -verbose:gc -XX:+PrintGCTimeStamps -Xloggc:$appdir/gc.out
+         -verbose:gc -XX:+PrintGCTimeStamps -Xloggc:${processDir}/gc.out
          -XX:MaxPermSize=512m
          -XX:+CMSClassUnloadingEnabled"
 
@@ -35,23 +35,11 @@ JAVA_OPTS="-Xmx$xmxMemory -XX:MaxDirectMemorySize=512M
 
 MAIN="spark.job.rest.server.MainContext"
 
-if [ -f "$appdir/settings.sh" ]; then
-  . $appdir/settings.sh
+if [ -f "${SCRIPTS_DIR}/settings.sh" ]; then
+  . "${SCRIPTS_DIR}/settings.sh"
 else
-  echo "Missing $appdir/settings.sh, exiting"
+  echo "Missing ${SCRIPTS_DIR}/settings.sh, exiting"
   exit 1
-fi
-
-if [ -z "$SPARK_HOME" ]; then
-  echo "Please set SPARK_HOME or put it in $appdir/settings.sh first"
-  exit 1
-fi
-
-# Pull in other env vars in spark config, such as MESOS_NATIVE_LIBRARY
-if [ -f $SPARK_CONF_HOME/spark-env.sh ]; then
-    . $SPARK_CONF_HOME/spark-env.sh
-else
-    echo "Warning! '$SPARK_CONF_HOME/spark-env.sh' is not exist. Check SPARK_CONF_HOME or create the file."
 fi
 
 mkdir -p $LOG_DIR
@@ -61,18 +49,8 @@ LOGGING_OPTS="-Dlog4j.configuration=log4j.properties
               -DLOG_DIR=${LOG_DIR}
               -DLOG_FILE=${LOG_FILE}"
 
-# For Mesos
-CONFIG_OVERRIDES=""
-if [ -n "$SPARK_EXECUTOR_URI" ]; then
-  CONFIG_OVERRIDES="-Dspark.executor.uri=$SPARK_EXECUTOR_URI "
-fi
-# For Mesos/Marathon, use the passed-in port
-if [ "$PORT" != "" ]; then
-  CONFIG_OVERRIDES+="-Dspark.jobserver.port=$PORT "
-fi
-
 # Need to explicitly include app dir in classpath so logging configs can be found
-CLASSPATH="${parentdir}/spark-job-rest-server.jar:$parentdir:$parentdir/resources:$appdir:${classpathParam}"
+CLASSPATH="${APP_DIR}/spark-job-rest-server.jar:$APP_DIR:$APP_DIR/resources:${classpathParam}"
 
 # Replace ":" with commas in classpath
 JARS=`echo "${classpathParam}" | sed -e 's/:/,/g'`
@@ -84,7 +62,7 @@ if [ ! "${EXTRA_CLASSPATH}" = "" ]; then
 fi
 
 # Prepend with SQL extras if exists
-SQL_EXTRAS="${parentdir}/${SJR_SQL_JAR_NAME}"
+SQL_EXTRAS="${APP_DIR}/${SJR_SQL_JAR_NAME}"
 if [ -f "${SQL_EXTRAS}" ]; then
     CLASSPATH="${SQL_EXTRAS}:${CLASSPATH}"
     JARS="${SQL_EXTRAS},${JARS}"
@@ -101,8 +79,8 @@ export JAR_PATH
 export CONTEXTS_BASE_DIR
 
 # Context application settings
-export SPARK_JOB_REST_CONTEXT_NAME="$contextName"
-export SPARK_JOB_REST_CONTEXT_PORT="$port"
+export CONTEXT_NAME="${contextName}"
+export CONTEXT_PORT="${port}"
 
 # Create context process directory
 mkdir -p "${processDir}"
@@ -117,6 +95,6 @@ cd "${processDir}"
   --conf "spark.executor.extraJavaOptions=${LOGGING_OPTS}" \
   --conf "spark.driver.extraClassPath=${CLASSPATH}" \
   --driver-java-options "${GC_OPTS} ${JAVA_OPTS} ${LOGGING_OPTS} ${CONFIG_OVERRIDES}" \
-  --jars "${JARS}" "${parentdir}/${SJR_SERVER_JAR_NAME}" \
-  $conffile >> "${LOG_DIR}/${LOG_FILE}" 2>&1 &
+  --jars "${JARS}" "${APP_DIR}/${SJR_SERVER_JAR_NAME}" \
+  >> "${LOG_DIR}/${LOG_FILE}" 2>&1 &
 echo $! > "${processDir}/context.pid"

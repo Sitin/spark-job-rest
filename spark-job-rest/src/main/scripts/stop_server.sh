@@ -1,18 +1,27 @@
 #!/bin/bash
 
-appdir="$(dirname "$0")"
+get_abs_script_path() {
+  pushd . >/dev/null
+  cd $(dirname $0)
+  SCRIPTS_DIR=$(pwd)
+  popd  >/dev/null
+}
+get_abs_script_path
 
-if [ -f "$appdir/server.pid" ]; then
-    pid="$(cat "$appdir/server.pid")"
+APP_DIR="$(dirname "$0")"
+PIDFILE="${SCRIPTS_DIR}/server.pid"
+
+if [ -f "${PIDFILE}" ]; then
+    pid="$(cat "${PIDFILE}")"
     proc="$(ps axu | grep "$pid" | grep spark-job-rest-server.jar | awk '{print $2}')"
     if [ -n "$proc" ]; then
         echo "Killing pid $proc"
         kill -9 $proc
-        rm -f "$appdir/server.pid"
+        rm -f "${PIDFILE}"
     else
         echo "Pid $pid does not exist or it's not for spark-job-rest."
     fi
 else
-echo "Pid file $appdir/server.pid was not found"
+echo "Pid file ${PIDFILE} was not found"
 fi
 

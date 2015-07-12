@@ -60,7 +60,8 @@ class DatabaseServer(val config: Config) extends Durations {
    */
   val server = Server.createTcpServer(
     "-tcpPort", getAvailablePort.toString,
-    "-baseDir", baseDir
+    "-baseDir", baseDir,
+    "-tcpAllowOthers"
   )
 
   /**

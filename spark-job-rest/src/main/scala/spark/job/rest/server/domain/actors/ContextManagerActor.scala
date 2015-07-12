@@ -242,7 +242,7 @@ class ContextManagerActor(defaultConfig: Config, jarActor: ActorRef, connectionP
   }
 
   def createProcessBuilder(contextName: String, port: Int, jarsForClasspath: String, config: Config): ProcessBuilder = {
-    val scriptPath = new File(System.getenv("SPARK_JOB_REST_CONTEXT_START_SCRIPT")).getPath
+    val scriptPath = new File(System.getenv("CONTEXT_START_SCRIPT")).getPath
     val xmxMemory = getValueFromConfig(config, "driver.xmxMemory", "1g")
 
     // Create context process directory

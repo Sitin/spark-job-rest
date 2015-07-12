@@ -72,7 +72,6 @@ lazy val assemblySettings = Seq(
 lazy val excludeServerResources = Seq(
   assemblyMergeStrategy in assembly := {
     case PathList("deploy.conf") => MergeStrategy.discard
-    case PathList("deploy-settings.sh") => MergeStrategy.discard
     case x =>
       val oldStrategy = (assemblyMergeStrategy in assembly).value
       oldStrategy(x)

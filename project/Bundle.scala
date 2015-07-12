@@ -27,7 +27,7 @@ object Bundle {
 
     val scriptsSrc = s"$srcBaseDir/$scriptsPath"
     val scriptsDest = "bin"
-    val scriptFiles = listFiles(new File(scriptsSrc), "*_server.sh")
+    val scriptFiles = listFiles(new File(scriptsSrc), "*.sh")
     val scriptDests = scriptFiles.map(file => s"$scriptsDest/${file.name}")
 
     val filesToArchive = resourceFiles.zip(resourceDests) ++ scriptFiles.zip(scriptDests) ++ Array((assemblyJar, destJarName))
