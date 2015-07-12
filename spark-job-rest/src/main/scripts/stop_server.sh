@@ -9,7 +9,7 @@ get_abs_script_path() {
 get_abs_script_path
 
 APP_DIR="$(dirname "$0")"
-PIDFILE="${SCRIPTS_DIR}/server.pid"
+PIDFILE="${APP_DIR}/server.pid"
 
 if [ -f "${PIDFILE}" ]; then
     pid="$(cat "${PIDFILE}")"

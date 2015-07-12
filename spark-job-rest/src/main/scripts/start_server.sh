@@ -13,6 +13,7 @@ get_abs_script_path() {
 get_abs_script_path
 
 APP_DIR="$(dirname "${SCRIPTS_DIR}")"
+PIDFILE="${APP_DIR}/server.pid"
 
 # From this variable depends whether server will be started in detached on in-process mode
 SJR_RUN_DETACHED="${SJR_RUN_DETACHED-true}"
@@ -76,8 +77,8 @@ function start_server() {
 
 if [ "${SJR_RUN_DETACHED}" = "true" ]; then
     start_server &
-    echo $! > "${SCRIPTS_DIR}/server.pid"
-    echo "Server started in detached mode. PID = `cat "${SCRIPTS_DIR}/server.pid"`"
+    echo $! > "${PIDFILE}"
+    echo "Server started in detached mode. PID = `cat "${PIDFILE}"`"
 elif [ "${SJR_RUN_DETACHED}" = "false" ]; then
     start_server
 else
