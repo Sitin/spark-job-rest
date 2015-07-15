@@ -5,10 +5,10 @@ import java.net.ServerSocket
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import org.slf4j.LoggerFactory
 import spark.job.rest.config.durations.Durations
-import spark.job.rest.server.domain.actors.getValueFromConfig
+import spark.job.rest.config.{ConfigDependentCompanion, Configured}
 import spark.job.rest.server.domain.actors.messages.{Initialized, IsInitialized}
 
 import scala.annotation.tailrec
@@ -17,10 +17,15 @@ import scala.util.{Success, Try}
 
 
 trait ActorUtils extends Durations {
+  import ActorUtils._
+
   private val log = LoggerFactory.getLogger(getClass)
 
   private lazy val askTimeout = durations.init.timeout
   private lazy val reTries = durations.init.tries
+
+  lazy val contextActorPrefix = config.getString("spark.job.rest.context.actor.prefix")
+  lazy val contextSystemPrefix = config.getString("spark.job.rest.context.actor.system.prefix")
 
   /**
    * Blocks until actor will be initialized
@@ -47,20 +52,27 @@ trait ActorUtils extends Durations {
           awaitActorInitialization(actor, timeout, tries - 1)
       }
   }
+
+  @deprecated
+  def getContextActorAddress(contextName: String, host: String, port: Int): String ={
+    getActorAddress(contextSystemPrefix + contextName, host, port, contextActorPrefix + contextName)
+  }
 }
 
 
-object ActorUtils {
-  val PREFIX_CONTEXT_ACTOR = "A-"
-  val PREFIX_CONTEXT_SYSTEM = "S-"
+object ActorUtils extends ConfigDependentCompanion[ActorUtils] {
+  
+  override def configDependentInstance(config: Config): ActorUtils =
+    new Configured(config) with ActorUtils
 
-  val HOST_PROPERTY_NAME = "spark.job.rest.manager.akka.remote.netty.tcp.hostname"
-  val PORT_PROPERTY_NAME = "spark.job.rest.manager.akka.remote.netty.tcp.port"
-
-  def getContextActorAddress(contextName: String, host: String, port: Int): String ={
-    getActorAddress(PREFIX_CONTEXT_SYSTEM + contextName, host, port, PREFIX_CONTEXT_ACTOR + contextName)
-  }
-
+  /**
+   * Helper method which calculates actor address
+   * @param systemName name of the actor system
+   * @param host actor system host
+   * @param port actor system port
+   * @param actorName actor name
+   * @return
+   */
   def getActorAddress(systemName: String, host: String, port: Int, actorName: String): String = {
     "akka.tcp://"  + systemName + "@" + host + ":" + port + "/user/" + actorName
   }
@@ -78,31 +90,5 @@ object ActorUtils {
       case Success(_) => port
       case _ => findAvailablePort(port + 1)
     }
-  }
-
-  def remoteConfig(hostname: String, port: Int, commonConfig: Config): Config = {
-
-    val host = getValueFromConfig(commonConfig, ActorUtils.HOST_PROPERTY_NAME, "127.0.0.1")
-
-    val configStr = """
-      akka{
-        log-dead-letters = 0
-        actor {
-            provider = "akka.remote.RemoteActorRefProvider"
-        }
-        remote {
-          enabled-transports = ["akka.remote.netty.tcp"]
-          log-sent-messages = on
-          log-received-messages = on
-          log-remote-lifecycle-events = off
-          netty.tcp {
-              maximum-frame-size = 512000b
-              hostname = """" + host + """"
-              port = """ + port +
-      """ }
-        }
-      }"""
-
-    ConfigFactory.parseString(configStr).withFallback(commonConfig)
   }
 }

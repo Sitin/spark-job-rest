@@ -12,6 +12,7 @@ import spark.job.rest.api.entities.ContextState.Running
 import spark.job.rest.api.entities.{ContextDetails, ContextState, Jars}
 import spark.job.rest.api.responses.{Context, Contexts}
 import spark.job.rest.api.types._
+import spark.job.rest.config.MasterNetworkConfig
 import spark.job.rest.config.durations.AskTimeout
 import spark.job.rest.persistence.services.ContextPersistenceService
 import spark.job.rest.persistence.slickWrapper.Driver.api._
@@ -50,7 +51,7 @@ object ContextManagerActor {
  * @param jarActor actor that responsible for jars which may be included to context classpath
  */
 class ContextManagerActor(defaultConfig: Config, jarActor: ActorRef, connectionProviderActor: ActorRef)
-  extends Actor with ContextPersistenceService with DatabaseUtils with AskTimeout {
+  extends Actor with ContextPersistenceService with DatabaseUtils with ActorUtils with MasterNetworkConfig with AskTimeout {
 
   val log = LoggerFactory.getLogger(getClass)
 
@@ -109,8 +110,8 @@ class ContextManagerActor(defaultConfig: Config, jarActor: ActorRef, connectionP
             val processActor = context.actorOf(Props(classOf[ContextProcessActor], processBuilder, contextName, config))
             processMap += contextName -> processActor
 
-            val host = getValueFromConfig(defaultConfig, ActorUtils.HOST_PROPERTY_NAME, "127.0.0.1")
-            val actorRef = context.actorSelection(ActorUtils.getContextActorAddress(contextName, host, port))
+            val host = masterHost
+            val actorRef = context.actorSelection(getContextActorAddress(contextName, host, port))
 
             // Persist context state and obtain context ID
             val contextDetails = ContextDetails(contextName, contextConfig, Some(mergedConfig), Jars.fromString(jars))
@@ -193,20 +194,20 @@ class ContextManagerActor(defaultConfig: Config, jarActor: ActorRef, connectionP
       log.error(s"Unrecoverable error on context $contextName : $contextId: $error")
   }
 
-  def sendInitMessage(contextName: String, contextId: ID, port: Int, actorRef: ActorSelection, sender: ActorRef, config: Config, jarsForSpark: List[String]): Unit = {
+  def sendInitMessage(contextName: String, contextId: ID, port: Int, actorRef: ActorSelection, sender: ActorRef, contextConfig: Config, jarsForSpark: List[String]): Unit = {
 
     val sleepTime = durations.context.sleep
     val tries = durations.context.tries
     val retryTimeOut = durations.context.timeout.duration
     val retryInterval = durations.context.interval
-    val sparkUiPort = config.getString(sparkUIConfigPath)
+    val sparkUiPort = contextConfig.getString(sparkUIConfigPath)
 
     context.system.scheduler.scheduleOnce(sleepTime) {
       val isAwakeFuture = context.actorOf(ReTry.props(tries, retryTimeOut, retryInterval, actorRef)) ? IsAwake
       isAwakeFuture map {
         case isAwake =>
           log.info(s"Remote context actor is awaken: $isAwake")
-          val initializationFuture = actorRef ? ContextActor.Initialize(contextName, contextId, connectionProviderActor, config, jarsForSpark)
+          val initializationFuture = actorRef ? ContextActor.Initialize(contextName, contextId, connectionProviderActor, contextConfig, jarsForSpark)
           initializationFuture map {
             case ContextActor.Initialized =>
               log.info(s"Context '$contextName' initialized")
@@ -233,12 +234,12 @@ class ContextManagerActor(defaultConfig: Config, jarActor: ActorRef, connectionP
     }
   }
 
-  def addSparkUiPortToConfig(config: Config): Config = {
+  def addSparkUiPortToConfig(contextConfig: Config): Config = {
     lastUsedPortSparkUi = ActorUtils.findAvailablePort(lastUsedPortSparkUi + 1)
     val map = new util.HashMap[String, String]()
     map.put(sparkUIConfigPath, lastUsedPortSparkUi.toString)
     val newConf = ConfigFactory.parseMap(map)
-    newConf.withFallback(config)
+    newConf.withFallback(contextConfig)
   }
 
   def createProcessBuilder(contextName: String, port: Int, jarsForClasspath: String, config: Config): ProcessBuilder = {
@@ -246,7 +247,7 @@ class ContextManagerActor(defaultConfig: Config, jarActor: ActorRef, connectionP
     val xmxMemory = getValueFromConfig(config, "driver.xmxMemory", "1g")
 
     // Create context process directory
-    val processDirName = new java.io.File(defaultConfig.getString("spark.job.rest.context.contexts-base-dir")).toString + s"/$contextName"
+    val processDirName = new java.io.File(defaultConfig.getString("spark.job.rest.context-creation.contexts-base-dir")).toString + s"/$contextName"
 
     Process(scriptPath, Seq(jarsForClasspath, contextName, port.toString, xmxMemory, processDirName))
   }

@@ -11,3 +11,7 @@ trait ConfigDependent {
    */
   def config: Config
 }
+
+abstract class ConfigDependentCompanion[T <: ConfigDependent] {
+  def configDependentInstance(config: Config): T
+}

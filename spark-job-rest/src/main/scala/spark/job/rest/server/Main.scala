@@ -3,7 +3,7 @@ package spark.job.rest.server
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import spark.job.rest.config.durations.AskTimeout
-import spark.job.rest.config.{defaultApplicationConfig, masterApplicationConfig}
+import spark.job.rest.config.{MasterNetworkConfig, masterApplicationConfig}
 import spark.job.rest.logging.LoggingOutputStream
 import spark.job.rest.server.domain.actors._
 import spark.job.rest.utils.ActorUtils
@@ -17,13 +17,12 @@ object Main extends ActorUtils with AskTimeout {
   LoggingOutputStream.redirectConsoleOutput()
 
   // Use default config as a base
-  val config = defaultApplicationConfig
+  val config = masterApplicationConfig
 
-  // Get master config
-  val masterConfig = masterApplicationConfig
+  val masterNetworkConfig: MasterNetworkConfig = MasterNetworkConfig.configDependentInstance(config)
 
   def main(args: Array[String]) {
-    val system = ActorSystem("ManagerSystem", masterConfig)
+    val system = ActorSystem("ManagerSystem", masterNetworkConfig.masterAkkaSystemConfig)
 
     val supervisor = system.actorOf(Props(classOf[Supervisor], config), "Supervisor")
 

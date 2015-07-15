@@ -12,8 +12,18 @@ package object config {
    */
   lazy val defaultApplicationConfig = ConfigFactory.load("deploy").withFallback(ConfigFactory.load())
 
+
   /**
    * Master application configuration.
    */
-  lazy val masterApplicationConfig = defaultApplicationConfig.getConfig("spark.job.rest.manager")
+  lazy val masterApplicationConfig = defaultApplicationConfig
+//    .withoutPath("spark.job.rest.context.akka")
+
+  /**
+   * Context application configuration.
+   */
+  lazy val contextApplicationConfig = defaultApplicationConfig
+//    .withoutPath("spark.job.rest.master")
+//    .withoutPath("spark.job.rest.appConf")
+//    .withoutPath("spark.job.rest.database")
 }

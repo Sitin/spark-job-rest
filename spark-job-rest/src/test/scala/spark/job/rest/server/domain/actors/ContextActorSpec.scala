@@ -55,7 +55,7 @@ class ContextActorSpec extends WordSpec with MustMatchers with BeforeAndAfter wi
 
   before {
     connectionProvider = TestActorRef(new DatabaseServerActor(config))
-    contextActorRef = TestActorRef(new ContextActor(config))
+    contextActorRef = TestActorRef(new ContextActor("127.0.0.1", 4042, config))
   }
 
   after {
