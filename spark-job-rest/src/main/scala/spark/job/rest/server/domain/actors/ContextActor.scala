@@ -105,6 +105,7 @@ class ContextActor(localConfig: Config) extends Actor
       // Stash all messages to process them later
       stash()
 
+      config = contextConfig.withFallback(config)
       contextName = name
       contextId = id
 
