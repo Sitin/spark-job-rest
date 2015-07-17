@@ -58,6 +58,8 @@ mkdir -p $LOG_DIR
 
 # Log directory for Java options
 JAVA_LOG_DIR="${LOG_DIR}"
+# Logf4 properties file location (now supported only on the PWD)
+LOG4J_PROPERTIES="${LOG4J_PROPERTIES-log4j.properties}"
 
 # Override setting for `yarn-cluster` mode
 if [ "${sparkMaster}" = "yarn-cluster" ]; then
@@ -68,7 +70,7 @@ if [ "${sparkMaster}" = "yarn-cluster" ]; then
 fi
 
 LOG_FILE="$contextName.log"
-LOGGING_OPTS="-Dlog4j.configuration=log4j.properties
+LOGGING_OPTS="-Dlog4j.configuration=${LOG4J_PROPERTIES}
               -DLOG_DIR=${JAVA_LOG_DIR}
               -DLOG_FILE=${LOG_FILE}"
 
@@ -95,7 +97,7 @@ fi
 PROGRAM_ARGUMENTS="${APP_CONF_FILE} ${contextName} ${contextId} ${masterHost} ${masterPort}"
 
 # Files to submit
-FILES="${RESOURCE_DIR}/deploy.conf"
+FILES="${RESOURCE_DIR}/deploy.conf,${RESOURCE_DIR}/log4j.properties"
 
 # Log classpath and jars
 echo "CLASSPATH         = ${CLASSPATH}" >> "${LOG_DIR}/${LOG_FILE}"

@@ -43,13 +43,16 @@ fi
 # Set deployment config overrides file path
 APP_CONF_FILE="${RESOURCE_DIR}/${DEPLOY_CONF_FILE}"
 
+# Logf4 properties file location (now supported only on the PWD)
+LOG4J_PROPERTIES="${LOG4J_PROPERTIES-log4j.properties}"
+
 # Create directories if not exist
 mkdir -p "${LOG_DIR}"
 mkdir -p "${JAR_PATH}"
 mkdir -p "${DATABASE_ROOT_DIR}"
 
 LOG_FILE="spark-job-rest.log"
-LOGGING_OPTS="-Dlog4j.configuration=log4j.properties
+LOGGING_OPTS="-Dlog4j.configuration=${LOG4J_PROPERTIES}
               -DLOG_DIR=${LOG_DIR}
               -DLOG_FILE=${LOG_FILE}"
 

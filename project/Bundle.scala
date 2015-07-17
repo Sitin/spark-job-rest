@@ -20,17 +20,24 @@ object Bundle {
 
     val srcBaseDir = sourceDirectory.value.getAbsolutePath
 
+    val log4jPropertiesFileName = "log4j.properties"
     val srcResources = s"$srcBaseDir/$resourcesPath"
     val destResources = "resources"
     val resourceFiles = listFiles(new File(srcResources), "*.*")
+      .filter(file => file.name != log4jPropertiesFileName)  // Filter out log4j.properties
     val resourceDests = resourceFiles.map(file => s"$destResources/${file.name}")
+    val log4jProperties = new File(s"$srcResources/$log4jPropertiesFileName")
+    val log4jPropertiesDest = log4jPropertiesFileName
 
     val scriptsSrc = s"$srcBaseDir/$scriptsPath"
     val scriptsDest = "bin"
     val scriptFiles = listFiles(new File(scriptsSrc), "*.sh")
     val scriptDests = scriptFiles.map(file => s"$scriptsDest/${file.name}")
 
-    val filesToArchive = resourceFiles.zip(resourceDests) ++ scriptFiles.zip(scriptDests) ++ Array((assemblyJar, destJarName))
+    val filesToArchive = resourceFiles.zip(resourceDests) ++
+      scriptFiles.zip(scriptDests) ++
+      Array((assemblyJar, destJarName)) ++
+      Array((log4jProperties, log4jPropertiesDest))
 
     zip(filesToArchive, artifact)
     for ((src, dst) <- filesToArchive)

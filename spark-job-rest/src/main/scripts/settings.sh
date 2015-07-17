@@ -32,6 +32,9 @@ fi
 # Only eli names supported!
 DEPLOY_CONF_FILE=${SJR_DEPLOY_CONF_FILE-deploy.conf}
 
+# Log4j properties (only file names supported)
+LOG4J_PROPERTIES=${SJR_LOG4J_PROPERTIES-log4j.properties}
+
 ##############################################################################
 # All following variables will not be overrided by deployment settings!!!
 ##############################################################################
