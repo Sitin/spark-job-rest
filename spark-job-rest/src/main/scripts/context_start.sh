@@ -97,7 +97,7 @@ fi
 PROGRAM_ARGUMENTS="${APP_CONF_FILE} ${contextName} ${contextId} ${masterHost} ${masterPort}"
 
 # Files to submit
-FILES="${RESOURCE_DIR}/deploy.conf,${RESOURCE_DIR}/log4j.properties"
+FILES="${RESOURCE_DIR}/deploy.conf,${APP_DIR}/${LOG4J_PROPERTIES}"
 
 # Log classpath and jars
 echo "CLASSPATH         = ${CLASSPATH}" >> "${LOG_DIR}/${LOG_FILE}"
