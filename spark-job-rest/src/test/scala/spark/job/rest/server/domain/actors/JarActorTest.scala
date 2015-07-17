@@ -13,6 +13,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfter, FunSuite, Matchers}
 import spark.job.rest.api.responses.JarInfo
+import spark.job.rest.config.JarsConfig
 import spark.job.rest.server.domain.actors.JarActor.{CreateJarFolder, DeleteJarFolder, ResultJarsPathForAll, _}
 import spark.job.rest.utils.FileUtils
 
@@ -22,7 +23,7 @@ import scala.util.{Random, Success}
  * Test suite for [[JarActor]].
  */
 @RunWith(classOf[JUnitRunner])
-class JarActorTest extends FunSuite with BeforeAndAfter with ScalaFutures with Matchers {
+class JarActorTest extends FunSuite with BeforeAndAfter with ScalaFutures with Matchers with JarsConfig {
 
   val config = ConfigFactory.load()
 
@@ -31,8 +32,6 @@ class JarActorTest extends FunSuite with BeforeAndAfter with ScalaFutures with M
 
   val jarActor = TestActorRef(new JarActor(config))
   val contextName = "demoContext"
-
-  val jarFolder = config.getString(JarActor.JAR_FOLDER_PROPERTY_PATH)
 
   def createLocalJar(jarName: String) = {
     val jarPath = jarFolder + jarName
@@ -103,7 +102,7 @@ class JarActorTest extends FunSuite with BeforeAndAfter with ScalaFutures with M
 
     future = jarActor ? GetJarsPathForClasspath(jarName, contextName)
     val Success(result: String) = future.value.get
-    result should be(config.getString(JarActor.JAR_FOLDER_PROPERTY_PATH) + File.separator + jarName)
+    result should be(config.getString(JarsConfig.jarFolderPropertyPath) + File.separator + jarName)
   }
 
   test("Get Classpath For Local Jar") {
@@ -131,7 +130,7 @@ class JarActorTest extends FunSuite with BeforeAndAfter with ScalaFutures with M
 
     future = jarActor ? GetJarsPathForClasspath(jarPath + "," + jarName, contextName)
     val Success(result: String) = future.value.get
-    result should be(jarPath + JarActor.CLASSPATH_JAR_SEPARATOR + config.getString(JarActor.JAR_FOLDER_PROPERTY_PATH) + File.separator + jarName)
+    result should be(jarPath + JarsConfig.classPathJarSeparator + config.getString(JarsConfig.jarFolderPropertyPath) + File.separator + jarName)
   }
 
   test("Get Spark Jars For Uploaded Jar") {
@@ -140,7 +139,7 @@ class JarActorTest extends FunSuite with BeforeAndAfter with ScalaFutures with M
 
     future = jarActor ? GetJarsPathForSpark(jarName)
     val Success(result: List[String]) = future.value.get
-    result should be(List(config.getString(JarActor.JAR_FOLDER_PROPERTY_PATH) + File.separator + jarName))
+    result should be(List(config.getString(JarsConfig.jarFolderPropertyPath) + File.separator + jarName))
   }
 
   test("Get Spark Jars For Local Jar") {
@@ -173,7 +172,7 @@ class JarActorTest extends FunSuite with BeforeAndAfter with ScalaFutures with M
 
     future = jarActor ? GetJarsPathForSpark(jarPath + "," + jarName + "," + hdfsJarPath)
     val Success(result: List[String]) = future.value.get
-    result should be(List(jarPath, config.getString(JarActor.JAR_FOLDER_PROPERTY_PATH) + File.separator + jarName, hdfsJarPath))
+    result should be(List(jarPath, config.getString(JarsConfig.jarFolderPropertyPath) + File.separator + jarName, hdfsJarPath))
   }
 
   test("Get All Jars Paths For Multiple Jars") {
@@ -186,8 +185,8 @@ class JarActorTest extends FunSuite with BeforeAndAfter with ScalaFutures with M
 
     future = jarActor ? GetJarsPathForAll(jarPath + "," + jarName, contextName)
     val Success(result: ResultJarsPathForAll) = future.value.get
-    result.pathForSpark should be(List(jarPath, config.getString(JarActor.JAR_FOLDER_PROPERTY_PATH) + File.separator + jarName))
-    result.pathForClasspath should be(jarPath + JarActor.CLASSPATH_JAR_SEPARATOR + jarFolder + File.separator + jarName)
+    result.pathForSpark should be(List(jarPath, config.getString(JarsConfig.jarFolderPropertyPath) + File.separator + jarName))
+    result.pathForClasspath should be(jarPath + JarsConfig.classPathJarSeparator + jarFolder + File.separator + jarName)
   }
 
 

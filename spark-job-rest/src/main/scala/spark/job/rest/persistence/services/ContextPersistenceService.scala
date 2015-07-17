@@ -17,7 +17,7 @@ import scala.concurrent.{Await, Future}
  * Collection of methods for persisting context entities
  */
 trait ContextPersistenceService extends Durations {
-  private val log = LoggerFactory.getLogger(getClass)
+  private val logger = LoggerFactory.getLogger(getClass)
 
   private lazy val dbTimeout = durations.db.timeout
 
@@ -25,11 +25,12 @@ trait ContextPersistenceService extends Durations {
    * Inserts new context to database
    * @param context context entity to persist
    * @param db database connection
-   * @return future of affected columns
+   * @return inserted context
    */
-  def insertContext(context: ContextDetails, db: Database): Future[Int] = {
-    log.info(s"Inserting context ${context.id}.")
-    db.run(contexts += context)
+  def insertContext(context: ContextDetails, db: Database): ContextDetails = {
+    logger.info(s"Inserting context ${context.id}.")
+    Await.result(db.run(contexts += context), dbTimeout.duration)
+    contextById(context.id, db).get
   }
 
   /**
@@ -39,25 +40,30 @@ trait ContextPersistenceService extends Durations {
    * @param contextId context's ID
    * @param newState context state to set
    * @param db database connection
+   * @return updated context
    */
-  def updateContextState(contextId: ID, newState: ContextState, db: Database, newDetails: String = ""): Unit = {
-    log.info(s"Updating context $contextId state to $newState with details: $newDetails")
+  def updateContextState(contextId: ID, newState: ContextState, db: Database, newDetails: String = ""): ContextDetails = {
+    logger.info(s"Updating context $contextId state to $newState with details: $newDetails")
     val affectedContext = for { c <- contexts if c.id === contextId && c.state =!= Failed && c.state =!= Terminated } yield c
     val contextStateUpdate = affectedContext map (x => (x.state, x.details)) update (newState, newDetails)
-    Await.ready(db.run(contextStateUpdate), dbTimeout.duration)
+    Await.result(db.run(contextStateUpdate), dbTimeout.duration)
+    contextById(contextId, db).get
   }
 
   /**
-   * Synchronously updates Spark UI port for context with specified id.
+   * Synchronously set context to [[Initialized]] state and updates Spark UI port.
    * @param contextId context's ID
-   * @param port Spark UI port to set
+   * @param sparkUiPort Spark UI port to set
    * @param db database connection
+   * @return updated context
    */
-  def setContextSparkUiPort(contextId: ID, port: String, db: Database): Unit = {
-    log.info(s"Updating context $contextId Spark UI port to $port.")
+  def persistContextInitialisation(contextId: ID, sparkUiPort: Int, db: Database): ContextDetails = {
+    logger.info(s"Updating context $contextId Spark UI port to $sparkUiPort.")
     val affectedContext = for { c <- contexts if c.id === contextId } yield c
-    val updateQuery = affectedContext map (_.sparkUiPort) update Some(port)
-    Await.ready(db.run(updateQuery), dbTimeout.duration)
+    val values = (Initialized, Some(sparkUiPort), "Remote context application initialized and about to start job context.")
+    val updateQuery = affectedContext map (c => (c.state, c.sparkUiPort, c.details )) update values
+    Await.result(db.run(updateQuery), dbTimeout.duration)
+    contextById(contextId, db).get
   }
 
   /**
@@ -65,20 +71,28 @@ trait ContextPersistenceService extends Durations {
    * @param contextId context's ID
    * @param finalConfig config finally applied to context
    * @param db database connection
+   * @return updated context
    */
-  def persistContextCreation(contextId: ID, finalConfig: Config, db: Database): Unit = {
-    log.info(s"Persisting context $contextId creation.")
+  def persistContextCreation(contextId: ID, finalConfig: Config, db: Database): ContextDetails = {
+    logger.info(s"Persisting context $contextId creation.")
     val affectedContext = for { c <- contexts if c.id === contextId } yield c
     val columnsToUpdate = affectedContext map (c => (c.state, c.details, c.finalConfig))
     val updateQuery = columnsToUpdate update (Running, "Context created", Some(finalConfig))
-    Await.ready(db.run(updateQuery), dbTimeout.duration)
+    Await.result(db.run(updateQuery), dbTimeout.duration)
+    contextById(contextId, db).get
   }
 
-  def contextById(contextId: ID, db: Database): Future[Option[ContextDetails]] = {
-    db.run(contexts.filter(c => c.id === contextId).result).map {
+  /**
+   * Synchronously returns context by ID.
+   * @param contextId context ID to lookup
+   * @param db database connection
+   * @return context on [[None]]
+   */
+  def contextById(contextId: ID, db: Database): Option[ContextDetails] = {
+    Await.result(db.run(contexts.filter(c => c.id === contextId).result).map {
       case Seq(context) => Some(context)
       case _ => None
-    }
+    }, dbTimeout.duration)
   }
 
   def allContexts(db: Database): Future[Array[ContextDetails]] = {

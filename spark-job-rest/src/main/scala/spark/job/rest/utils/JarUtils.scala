@@ -2,6 +2,30 @@ package spark.job.rest.utils
 
 import java.io.{File, FileNotFoundException}
 
+import spark.job.rest.api.entities.Jars
+import spark.job.rest.config.JarsConfig
+
+/**
+ * Mixable helpers for JAR manipulation which depends on application config.
+ */
+trait JarUtils  extends JarsConfig {
+  def getJarsPathForSpark(jars: Jars): List[String] =
+    jars.list map { x: String =>
+      JarUtils.getJarPathForSpark(x, jarFolder)
+    }
+
+  def getJarsPathForSpark(jars: String): List[String] =
+    getJarsPathForSpark(Jars.fromString(jars))
+
+  def getJarsPathForClasspath(jars: Jars, contextName: String): String =
+    jars.list map { x =>
+      JarUtils.getPathForClasspath(x, jarFolder, contextName)
+    } mkString JarsConfig.classPathJarSeparator
+
+  def getJarsPathForClasspath(jars: String, contextName: String): String =
+    getJarsPathForClasspath(Jars.fromString(jars), contextName)
+}
+
 /**
  * JAR's manipulation functions.
  */
@@ -44,7 +68,7 @@ object JarUtils {
     val diskFile = new File(diskPath)
 
     if (!diskFile.exists()) {
-      throw new FileNotFoundException(s"Jar $path not found.")
+      throw new FileNotFoundException(s"Jar $path for spark-submit not found.")
     }
 
     diskFile.getAbsolutePath
@@ -69,7 +93,7 @@ object JarUtils {
     if (path.startsWith("hdfs")) {
       // Throw exception if file is not exists
       if (!HdfsUtils.hdfsFileExists(path)) {
-        throw new FileNotFoundException(s"Jar $path not found.")
+        throw new FileNotFoundException(s"Jar $path for Spark config not found.")
       }
       path
     } else {
@@ -80,7 +104,7 @@ object JarUtils {
 
       val diskFile = new File(diskPath)
       if (!diskFile.exists()) {
-        throw new FileNotFoundException(s"Jar $path not found.")
+        throw new FileNotFoundException(s"Jar $path for Spark config not found.")
       }
 
       diskFile.getAbsolutePath

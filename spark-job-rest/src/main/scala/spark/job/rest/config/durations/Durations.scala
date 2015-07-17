@@ -26,13 +26,13 @@ trait Durations extends ConfigDependent {
 
     object context {
       // Following parameters defines context actor initialisation and registration
-      def sleep = FiniteDuration(config.getLong(s"$prefix.context.sleep"), TimeUnit.MILLISECONDS)
-      def timeout = Timeout(config.getLong(s"$prefix.context.timeout"), TimeUnit.MILLISECONDS)
-      def interval = FiniteDuration(config.getLong(s"$prefix.context.interval"), TimeUnit.MILLISECONDS)
-      def tries = config.getInt(s"$prefix.context.tries")
+      def wakeupTimeout = FiniteDuration(config.getLong(s"$prefix.context.wakeup-timeout"), TimeUnit.MILLISECONDS)
+      def watchSupervisorTimeout = FiniteDuration(config.getLong(s"$prefix.context.watch-supervisor-timeout"), TimeUnit.MILLISECONDS)
+      def initialisationTimeout = FiniteDuration(config.getLong(s"$prefix.context.initialisation-timeout"), TimeUnit.MILLISECONDS)
+      def startTimeout = FiniteDuration(config.getLong(s"$prefix.context.start-timeout"), TimeUnit.MILLISECONDS)
       // Context actor process start/stop durations
-      def waitBeforeStart = FiniteDuration(config.getLong(s"$prefix.context.wait-before-start"), TimeUnit.MILLISECONDS)
-      def waitBeforeTermination = FiniteDuration(config.getLong(s"$prefix.context.wait-before-termination"), TimeUnit.MILLISECONDS)
+      def waitBeforeWatch = FiniteDuration(config.getLong(s"$prefix.context.wait-before-watch"), TimeUnit.MILLISECONDS)
+      def waitForTermination = FiniteDuration(config.getLong(s"$prefix.context.wait-for-termination"), TimeUnit.MILLISECONDS)
     }
 
     object supervisor {

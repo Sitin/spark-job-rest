@@ -3,7 +3,6 @@ package spark.job.rest.server.domain.actors
 import akka.actor.{Actor, ActorRef, ActorSelection}
 import akka.pattern.ask
 import com.typesafe.config.Config
-import org.joda.time.{DateTime, DateTimeZone}
 import org.slf4j.LoggerFactory
 import spark.job.rest.api.types.ID
 import spark.job.rest.config.durations.AskTimeout
@@ -21,12 +20,10 @@ object JobActor {
   case class RunJob(runningClass: String, contextName: String, config: Config, id: ID)
   case object GetAllJobsStatus
 
-  trait JobStatus
-  case class JobRunError(errorMessage: String) extends JobStatus
-  case class JobRunSuccess(result:String) extends JobStatus
-  case class JobStarted(startTime: Long = new DateTime  (DateTimeZone.UTC).getMillis) extends JobStatus
-  case object JobDoesNotExist extends JobStatus
-  case object JobAccepted extends JobStatus
+  case class JobStarted(jobId: ID, contextName: String, contextId: ID, finalJobConfig: Config)
+  case class JobResult(jobId: ID, result: String)
+  case class JobFailure(jobId: ID, errorMessage: String)
+  case object JobAccepted
 }
 
 
@@ -74,6 +71,15 @@ class JobActor(val config: Config, contextManagerActor: ActorRef, connectionProv
           persistJobFailure(jobId, s"Unrecoverable error during submit: ${e.getStackTrace}", db)
           log.error(s"An error has occurred.", e)
       }
+
+    case JobStarted(jobId, contextName, contextId, finalJobConfig) =>
+      persistJobStart(jobId, contextName, contextId, finalJobConfig, db)
+
+    case JobResult(jobId, result) =>
+      persistJobResult(jobId, result, db)
+
+    case JobFailure(jobId, errorMessage) =>
+      persistJobFailure(jobId, errorMessage, db)
   }
 }
 

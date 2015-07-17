@@ -18,7 +18,7 @@ import spark.job.rest.test.fixtures
 import scala.concurrent.Await
 
 /**
- * Test suit for [[ContextActor]]
+ * Test suit for [[ContextApplicationActor]]
  */
 @RunWith(classOf[JUnitRunner])
 class DatabaseConnectionActorSpec extends WordSpec with MustMatchers with BeforeAndAfter with TimeLimitedTests {

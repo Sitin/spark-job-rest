@@ -28,7 +28,7 @@ class ContextPersistenceServiceSpec
 
   implicit val timeout = dbTimeout
 
-  val server = new DatabaseServer(fixtures.applicationConfig)
+  val server = new DatabaseServer(config)
   server.reset()
   def db = server.db
 

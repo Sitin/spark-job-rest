@@ -53,6 +53,10 @@ trait ActorUtils extends Durations {
       }
   }
 
+  def getContextSupervisorAddress(contextName: String, host: String, port: Int): String ={
+    getActorAddress("ManagerSystem", host, port, s"Supervisor/ContextManager/ContextSupervisor/$contextName")
+  }
+
   @deprecated
   def getContextActorAddress(contextName: String, host: String, port: Int): String ={
     getActorAddress(contextSystemPrefix + contextName, host, port, contextActorPrefix + contextName)

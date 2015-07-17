@@ -11,16 +11,25 @@ get_abs_script_path() {
 get_abs_script_path
 
 APP_DIR="$(dirname "${SCRIPTS_DIR}")"
+RESOURCE_DIR="${APP_DIR}/resources"
 
-classpathParam=$1
+jarsForClasspath=$1
 contextName=$2
-port=$3
-xmxMemory=$4
-processDir=$5
+contextId=$3
+sparkMaster=$4
+xmxMemory=$5
+processDir=$6
+masterHost=$7
+masterPort=$8
 
-echo "classpathParam = ${classpathParam}"
-echo "contextName = ${contextName}"
-echo "port = ${port}"
+echo "jarsForClasspath = ${jarsForClasspath}"
+echo "contextName      = ${contextName}"
+echo "contextId        = ${contextId}"
+echo "sparkMaster      = ${sparkMaster}"
+echo "xmxMemory        = ${xmxMemory}"
+echo "processDir       = ${processDir}"
+echo "masterHost       = ${masterHost}"
+echo "masterPort       = ${masterPort}"
 
 
 GC_OPTS="-XX:+UseConcMarkSweepGC
@@ -50,10 +59,10 @@ LOGGING_OPTS="-Dlog4j.configuration=log4j.properties
               -DLOG_FILE=${LOG_FILE}"
 
 # Need to explicitly include app dir in classpath so logging configs can be found
-CLASSPATH="${APP_DIR}/spark-job-rest-server.jar:$APP_DIR:$APP_DIR/resources:${classpathParam}"
+CLASSPATH="${APP_DIR}/spark-job-rest-server.jar:${APP_DIR}:${RESOURCE_DIR}:${jarsForClasspath}"
 
 # Replace ":" with commas in classpath
-JARS=`echo "${classpathParam}" | sed -e 's/:/,/g'`
+JARS=`echo "${jarsForClasspath}" | sed -e 's/:/,/g'`
 
 # Include extra classpath if not empty
 if [ ! "${EXTRA_CLASSPATH}" = "" ]; then
@@ -68,19 +77,17 @@ if [ -f "${SQL_EXTRAS}" ]; then
     JARS="${SQL_EXTRAS},${JARS}"
 fi
 
-# Log classpath and jars
-echo "CLASSPATH = ${CLASSPATH}" >> "${LOG_DIR}/${LOG_FILE}"
-echo "JARS = ${JARS}" >> "${LOG_DIR}/${LOG_FILE}"
-
-# The following should be exported in order to be accessible in Config substitutions
-export SPARK_HOME
-export APP_DIR
-export JAR_PATH
-export CONTEXTS_BASE_DIR
-
 # Context application settings
-export CONTEXT_NAME="${contextName}"
-export CONTEXT_PORT="${port}"
+PROGRAM_ARGUMENTS="${contextName} ${contextId} ${masterHost} ${masterPort}"
+
+# Files to submit
+FILES="${RESOURCE_DIR}/deploy.conf,${RESOURCE_DIR}/log4j.properties"
+
+# Log classpath and jars
+echo "CLASSPATH         = ${CLASSPATH}" >> "${LOG_DIR}/${LOG_FILE}"
+echo "JARS              = ${JARS}" >> "${LOG_DIR}/${LOG_FILE}"
+echo "PROGRAM_ARGUMENTS = ${PROGRAM_ARGUMENTS}" >> "${LOG_DIR}/${LOG_FILE}"
+echo "FILES             = ${FILES}" >> "${LOG_DIR}/${LOG_FILE}"
 
 # Create context process directory
 mkdir -p "${processDir}"
@@ -95,6 +102,7 @@ cd "${processDir}"
   --conf "spark.executor.extraJavaOptions=${LOGGING_OPTS}" \
   --conf "spark.driver.extraClassPath=${CLASSPATH}" \
   --driver-java-options "${GC_OPTS} ${JAVA_OPTS} ${LOGGING_OPTS} ${CONFIG_OVERRIDES}" \
-  --jars "${JARS}" "${APP_DIR}/${SJR_SERVER_JAR_NAME}" \
-  >> "${LOG_DIR}/${LOG_FILE}" 2>&1 &
-echo $! > "${processDir}/context.pid"
+  --jars "${JARS}" \
+  --files "${FILES}" \
+  "${APP_DIR}/${SJR_SERVER_JAR_NAME}" ${PROGRAM_ARGUMENTS} \
+  >> "${LOG_DIR}/${LOG_FILE}" 2>&1

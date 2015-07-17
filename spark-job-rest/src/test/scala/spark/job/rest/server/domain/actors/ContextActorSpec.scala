@@ -12,7 +12,7 @@ import org.scalatest.junit.JUnitRunner
 import spark.job.rest.api.types.nextIdentifier
 import spark.job.rest.api.{ContextLike, SparkJobBase}
 import spark.job.rest.context.JobContextFactory
-import spark.job.rest.server.domain.actors.ContextActor.Initialize
+import spark.job.rest.server.domain.actors.ContextApplicationActor.Initialize
 import spark.job.rest.test.durations.{contextTimeout, dbTimeout, timeLimits}
 import spark.job.rest.test.fixtures
 
@@ -55,7 +55,7 @@ class ContextActorSpec extends WordSpec with MustMatchers with BeforeAndAfter wi
 
   before {
     connectionProvider = TestActorRef(new DatabaseServerActor(config))
-    contextActorRef = TestActorRef(new ContextActor("127.0.0.1", 4042, config))
+    contextActorRef = TestActorRef(new ContextActor(contextName, contextId, config))
   }
 
   after {
@@ -64,22 +64,22 @@ class ContextActorSpec extends WordSpec with MustMatchers with BeforeAndAfter wi
   }
 
   "ContextActor" should {
-    "create Spark context when initialized" in {
+    "create Spark context when requested" in {
       val future = contextActorRef ? initMessage()
-      val Success(ContextActor.Initialized) = future.value.get
+      val Success(ContextApplicationActor.StartContext) = future.value.get
       contextActor.jobContext.isInstanceOf[SparkContext] mustEqual true
     }
 
     "have default factory for Spark context" in {
       val configWithoutFactory = config.withoutPath(JobContextFactory.classNameConfigEntry)
       val future = contextActorRef ? initMessage(configWithoutFactory)
-      val Success(ContextActor.Initialized) = future.value.get
+      val Success(ContextApplicationActor.StartContext) = future.value.get
       contextActor.jobContext.isInstanceOf[SparkContext] mustEqual true
     }
 
     "create context from specified factory" in {
       val future = contextActorRef ? initMessage(fakeContextFactoryConfig)
-      val Success(ContextActor.Initialized) = future.value.get
+      val Success(ContextApplicationActor.StartContext) = future.value.get
       contextActor.jobContext.isInstanceOf[FakeContext] mustEqual true
     }
 

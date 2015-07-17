@@ -13,7 +13,14 @@ package object types {
 
   /**
    * Returns next unique identifier. We use it to simplify switching to different identifiers backend.
-   * @return next ID
+   * @return next [[ID]]
    */
   def nextIdentifier: ID = UUID.randomUUID()
+
+  /**
+   * Parses [[ID]] from string.
+   * @param string string representation of ID
+   * @return
+   */
+  def idFromString(string: String) = UUID.fromString(string)
 }

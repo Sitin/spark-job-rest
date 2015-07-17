@@ -20,5 +20,5 @@ case class ContextDetails(name: String,
                           jars: Jars,
                           state: ContextState = Requested,
                           details: String = "",
-                          sparkUiPort: Option[String] = None,
+                          sparkUiPort: Option[Int] = None,
                           id: ID = nextIdentifier)

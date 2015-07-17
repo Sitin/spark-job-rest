@@ -19,7 +19,7 @@ import scala.concurrent.Await
 import scala.util.Success
 
 /**
- * Test suit for [[ContextActor]]
+ * Test suit for [[ContextApplicationActor]]
  */
 @RunWith(classOf[JUnitRunner])
 class DatabaseServerActorSpec extends WordSpec with MustMatchers with BeforeAndAfter with TimeLimitedTests {

@@ -27,16 +27,12 @@ object JarActor {
   case class CreateJarFolder(overwrite: Boolean)
   case class JarFolderExists()
   case class ResultJarsPathForAll(pathForClasspath: String, pathForSpark: List[String])
-
-  val CLASSPATH_JAR_SEPARATOR = ":"
-  val JAR_FOLDER_PROPERTY_PATH = "spark.job.rest.appConf.jars.path"
 }
 
-class JarActor(config: Config) extends Actor {
+class JarActor(val config: Config) extends Actor with JarUtils {
 
   val log = LoggerFactory.getLogger(getClass)
 
-  val jarFolder = getValueFromConfig(config, JAR_FOLDER_PROPERTY_PATH, "")
   FileUtils.createFolder(jarFolder, overwrite = false)
 
   override def receive: Receive = {
@@ -116,18 +112,6 @@ class JarActor(config: Config) extends Actor {
     case JarFolderExists() =>
       val file = new File(jarFolder)
       sender ! file.exists()
-  }
-
-  def getJarsPathForSpark(path: String): List[String] = {
-    path.split(",") map { x: String =>
-      JarUtils.getJarPathForSpark(x, jarFolder)
-    } toList
-  }
-
-  def getJarsPathForClasspath(path: String, contextName: String) = {
-    path.split(",") map { x =>
-      JarUtils.getPathForClasspath(x, jarFolder, contextName)
-    } mkString CLASSPATH_JAR_SEPARATOR
   }
 }
 

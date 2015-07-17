@@ -14,7 +14,7 @@ import scala.util.{Failure, Success, Try}
 trait DatabaseUtils extends Durations {
   private implicit def timeout = durations.db.connection.timeout
   private def maxReties = durations.db.connection.tries
-  private val log = LoggerFactory.getLogger(getClass)
+  private val logger = LoggerFactory.getLogger(getClass)
 
   /**
    * Synchronously requests connection from connection provider actor which may be either.
@@ -36,7 +36,7 @@ trait DatabaseUtils extends Durations {
         else
           dbConnection(connectionProviderActor, retries)
       case Failure(e: Throwable) =>
-        log.error("Error during obtaining database connection from provider", e)
+        logger.error("Error during obtaining database connection from provider", e)
         throw e
     }
   }

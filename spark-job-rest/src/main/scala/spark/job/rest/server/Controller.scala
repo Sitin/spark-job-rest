@@ -9,7 +9,6 @@ import spark.job.rest.api.entities.{ContextDetails, JobDetails}
 import spark.job.rest.api.json.JsonProtocol._
 import spark.job.rest.api.responses._
 import spark.job.rest.persistence.services.{ContextPersistenceService, JobPersistenceService}
-import spark.job.rest.server.domain.actors.ContextActor.FailedInit
 import spark.job.rest.server.domain.actors.ContextManagerActor._
 import spark.job.rest.server.domain.actors.JarActor._
 import spark.job.rest.server.domain.actors.JobActor.{JobAccepted, _}
@@ -207,10 +206,13 @@ class Controller(val config: Config,
       path(JavaUUID) { contextId =>
         corsFilter(List("*")) {
           respondWithMediaType(MediaTypes.`application/json`) { ctx =>
-            contextById(contextId, db).map {
-              case Some(context: ContextDetails) => ctx.complete(StatusCodes.OK, context)
-              case None => ctx.complete(StatusCodes.BadRequest, ErrorResponse("No such context."))
-              case x: Any => ctx.complete(StatusCodes.InternalServerError, ErrorResponse(x.toString))
+            try {
+              contextById(contextId, db) match {
+                case Some(context: ContextDetails) => ctx.complete(StatusCodes.OK, context)
+                case None => ctx.complete(StatusCodes.BadRequest, ErrorResponse("No such context."))
+              }
+            } catch {
+              case e: Throwable => ctx.complete(StatusCodes.InternalServerError, ErrorResponse(e.getStackTrace.toString))
             }
           }
         }
@@ -262,7 +264,7 @@ class Controller(val config: Config,
                   val resultFuture = contextManagerActor ? CreateContext(contextName, getValueFromConfig(requestConfig, "jars", ""), requestConfig)
                   resultFuture.map {
                     case context: Context => ctx.complete(StatusCodes.OK, context)
-                    case e: FailedInit => ctx.complete(StatusCodes.InternalServerError, ErrorResponse("Failed Init: " + e.message))
+                    case JarsPropertiesIsNotSet => ctx.complete(StatusCodes.InternalServerError, ErrorResponse("Jars property is not set for context."))
                     case ContextAlreadyExists => ctx.complete(StatusCodes.BadRequest, ErrorResponse("Context already exists."))
                     case e: Throwable => ctx.complete(StatusCodes.InternalServerError, ErrorResponse(e.getMessage))
                     case x: Any => ctx.complete(StatusCodes.InternalServerError, ErrorResponse(x.toString))
@@ -292,7 +294,7 @@ class Controller(val config: Config,
         get {
           corsFilter(List("*")) {
             respondWithMediaType(MediaTypes.`application/json`) { ctx =>
-              val resultFuture = contextManagerActor ? GetAllContextsForClient
+              val resultFuture = contextManagerActor ? GetAllContexts
               resultFuture.map {
                 case contexts: Contexts => ctx.complete(StatusCodes.OK, contexts)
                 case e: Throwable => ctx.complete(StatusCodes.InternalServerError, ErrorResponse(e.getMessage))

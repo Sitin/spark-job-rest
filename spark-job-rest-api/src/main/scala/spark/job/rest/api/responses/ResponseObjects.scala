@@ -8,7 +8,7 @@ import spark.job.rest.api.json.JsonProtocol._
 import spark.job.rest.api.types.ID
 
 
-case class Context(contextName: String, contextId: ID, state: ContextState, sparkUiPort: String)
+case class Context(contextName: String, contextId: ID, state: ContextState, sparkUiPort: Option[Int])
 
 object Context {
   implicit val logJson = jsonFormat4(apply)
@@ -20,7 +20,7 @@ object Context {
    */
   def fromContextDetails(contextDetails: ContextDetails): Context = contextDetails match {
     case ContextDetails(contextName, _, _, _, state, _, sparkUiPort, contextId) =>
-      Context(contextName, contextId, state, sparkUiPort.getOrElse(""))
+      Context(contextName, contextId, state, sparkUiPort)
   }
 }
 
