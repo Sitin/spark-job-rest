@@ -28,6 +28,10 @@ if [ -f "${DEPLOY_CONFIG}" ]; then
     source "${DEPLOY_CONFIG}"
 fi
 
+# File name for deployment configuration overrides
+# Only eli names supported!
+DEPLOY_CONF_FILE=${SJR_DEPLOY_CONF_FILE-deploy.conf}
+
 ##############################################################################
 # All following variables will not be overrided by deployment settings!!!
 ##############################################################################

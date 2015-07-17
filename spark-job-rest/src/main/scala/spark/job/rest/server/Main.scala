@@ -2,6 +2,7 @@ package spark.job.rest.server
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
+import com.typesafe.config.Config
 import spark.job.rest.config.durations.AskTimeout
 import spark.job.rest.config.{MasterNetworkConfig, masterApplicationConfig}
 import spark.job.rest.logging.LoggingOutputStream
@@ -13,17 +14,21 @@ import scala.concurrent.Await
 /**
  * Spark-Job-REST entry point.
  */
-object Main extends ActorUtils with AskTimeout {
+object Main extends ActorUtils with MasterNetworkConfig with AskTimeout {
   LoggingOutputStream.redirectConsoleOutput()
 
-  // Use default config as a base
-  val config = masterApplicationConfig
-
-  val masterNetworkConfig: MasterNetworkConfig = MasterNetworkConfig.configDependentInstance(config)
+  /**
+   * Application config depends on program parameters
+   */
+  var config: Config = _
 
   def main(args: Array[String]) {
-    val system = ActorSystem("ManagerSystem", masterNetworkConfig.masterAkkaSystemConfig)
+    // Use default config as a base
+    config = masterApplicationConfig(args(0))
 
+    // Create actor system
+    val system = ActorSystem("ManagerSystem", masterAkkaSystemConfig)
+    // Create supervisor for system actors
     val supervisor = system.actorOf(Props(classOf[Supervisor], config), "Supervisor")
 
     // Database server actor will instantiate database and ensures that schema is created

@@ -1,6 +1,7 @@
 package spark.job.rest.server
 
 import akka.actor.{ActorSystem, Props}
+import com.typesafe.config.Config
 import org.slf4j.LoggerFactory
 import spark.job.rest.api.types.idFromString
 import spark.job.rest.config.{ContextNetworkConfig, contextApplicationConfig}
@@ -11,19 +12,21 @@ import spark.job.rest.utils.ActorUtils
 /**
  * Spark context container entry point.
  */
-object MainContext extends ActorUtils {
+object MainContext extends ActorUtils with ContextNetworkConfig {
 
   LoggingOutputStream.redirectConsoleOutput()
   val log = LoggerFactory.getLogger(getClass)
 
-  val config = contextApplicationConfig
-  val akkaSystemConfig = ContextNetworkConfig.configDependentInstance(config).akkaSystemConfig
+  var config: Config = _
 
   def main(args: Array[String]) {
-    val contextName = args(0)
-    val contextId = idFromString(args(1))
-    val masterHost = args(2)
-    val masterPort = args(3).toInt
+    val extraConfig = args(0)
+    val contextName = args(1)
+    val contextId = idFromString(args(2))
+    val masterHost = args(3)
+    val masterPort = args(4).toInt
+
+    config = contextApplicationConfig(extraConfig)
 
     log.info(s"Started new process for contextName = $contextName with port = $masterPort")
 

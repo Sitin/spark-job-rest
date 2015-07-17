@@ -51,11 +51,25 @@ else
   exit 1
 fi
 
+# Set deployment config overrides file path
+APP_CONF_FILE="${RESOURCE_DIR}/${DEPLOY_CONF_FILE}"
+
 mkdir -p $LOG_DIR
+
+# Log directory for Java options
+JAVA_LOG_DIR="${LOG_DIR}"
+
+# Override setting for `yarn-cluster` mode
+if [ "${sparkMaster}" = "yarn-cluster" ]; then
+    # Set log dirrectory to current\
+    JAVA_LOG_DIR="."
+    # Lookup for configuration overrides in current directory
+    APP_CONF_FILE="${DEPLOY_CONF_FILE}"
+fi
 
 LOG_FILE="$contextName.log"
 LOGGING_OPTS="-Dlog4j.configuration=log4j.properties
-              -DLOG_DIR=${LOG_DIR}
+              -DLOG_DIR=${JAVA_LOG_DIR}
               -DLOG_FILE=${LOG_FILE}"
 
 # Need to explicitly include app dir in classpath so logging configs can be found
@@ -78,10 +92,10 @@ if [ -f "${SQL_EXTRAS}" ]; then
 fi
 
 # Context application settings
-PROGRAM_ARGUMENTS="${contextName} ${contextId} ${masterHost} ${masterPort}"
+PROGRAM_ARGUMENTS="${APP_CONF_FILE} ${contextName} ${contextId} ${masterHost} ${masterPort}"
 
 # Files to submit
-FILES="${RESOURCE_DIR}/deploy.conf,${RESOURCE_DIR}/log4j.properties"
+FILES="${RESOURCE_DIR}/deploy.conf"
 
 # Log classpath and jars
 echo "CLASSPATH         = ${CLASSPATH}" >> "${LOG_DIR}/${LOG_FILE}"
@@ -98,6 +112,7 @@ cd "${processDir}"
 "${SPARK_HOME}/bin/spark-submit" \
   --verbose \
   --class $MAIN \
+  --master "${sparkMaster}" \
   --driver-memory $xmxMemory \
   --conf "spark.executor.extraJavaOptions=${LOGGING_OPTS}" \
   --conf "spark.driver.extraClassPath=${CLASSPATH}" \

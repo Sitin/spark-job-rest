@@ -14,6 +14,7 @@ get_abs_script_path
 
 APP_DIR="$(dirname "${SCRIPTS_DIR}")"
 PIDFILE="${APP_DIR}/server.pid"
+RESOURCE_DIR="${APP_DIR}/resources"
 
 # From this variable depends whether server will be started in detached on in-process mode
 SJR_RUN_DETACHED="${SJR_RUN_DETACHED-true}"
@@ -39,6 +40,9 @@ else
   exit 1
 fi
 
+# Set deployment config overrides file path
+APP_CONF_FILE="${RESOURCE_DIR}/${DEPLOY_CONF_FILE}"
+
 # Create directories if not exist
 mkdir -p "${LOG_DIR}"
 mkdir -p "${JAR_PATH}"
@@ -50,7 +54,7 @@ LOGGING_OPTS="-Dlog4j.configuration=log4j.properties
               -DLOG_FILE=${LOG_FILE}"
 
 # Need to explicitly include app dir in classpath so logging configs can be found
-CLASSPATH="${APP_DIR}/${SJR_SERVER_JAR_NAME}:${APP_DIR}:${APP_DIR}/resources"
+CLASSPATH="${APP_DIR}/${SJR_SERVER_JAR_NAME}:${APP_DIR}:${RESOURCE_DIR}"
 
 # Log classpath
 echo "CLASSPATH = ${CLASSPATH}" >> "${LOG_DIR}/${LOG_FILE}"
@@ -71,7 +75,7 @@ function start_server() {
       --conf "spark.executor.extraJavaOptions=${LOGGING_OPTS}" \
       --conf "spark.driver.extraClassPath=${CLASSPATH}" \
       --driver-java-options "${GC_OPTS} ${JAVA_OPTS} ${LOGGING_OPTS} ${CONFIG_OVERRIDES}" \
-      $@ "${APP_DIR}/${SJR_SERVER_JAR_NAME}" \
+      $@ "${APP_DIR}/${SJR_SERVER_JAR_NAME}" "${APP_CONF_FILE}" \
       >> "${LOG_DIR}/${LOG_FILE}" 2>&1
 }
 
