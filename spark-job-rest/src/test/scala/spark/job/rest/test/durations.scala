@@ -9,7 +9,7 @@ import akka.util.Timeout
  */
 object durations {
   val dbTimeout = Timeout(1, TimeUnit.SECONDS)
-  val contextTimeout = Timeout(15, TimeUnit.SECONDS)
+  val contextTimeout = Timeout(60, TimeUnit.SECONDS)
 
   object timeLimits {
     import org.scalatest.time.SpanSugar._

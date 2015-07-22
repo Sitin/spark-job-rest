@@ -36,6 +36,7 @@ class DatabaseServerActor(val config: Config) extends Actor with AskTimeout {
       log.info(s"Sending database info ${server.databaseInfo} to ${sender()}")
       sender() ! server.databaseInfo
     case IsInitialized =>
+      log.info("Received IsInitialized request.")
       sender() ! Initialized
   }
 }

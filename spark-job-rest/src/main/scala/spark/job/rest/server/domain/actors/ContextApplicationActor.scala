@@ -5,8 +5,9 @@ import com.typesafe.config.{Config, ConfigValueFactory}
 import spark.job.rest.api.types.ID
 import spark.job.rest.config.ContextNetworkConfig
 import spark.job.rest.config.durations.AskTimeout
+import spark.job.rest.context.JobContextStartException
 import spark.job.rest.persistence.slickWrapper.Driver.api.Database
-import spark.job.rest.server.domain.actors.ContextSupervisorActor._
+import spark.job.rest.server.domain.actors.ContextProviderActor._
 import spark.job.rest.server.domain.actors.JobActor._
 import spark.job.rest.utils.{ActorUtils, DatabaseUtils}
 
@@ -29,10 +30,10 @@ object states {
  */
 object data {
   sealed trait Data {
-    val supervisor: ActorRef
+    val provider: ActorRef
   }
-  case class Awaken(supervisor: ActorRef) extends Data
-  case class Initialized(supervisor: ActorRef,
+  case class Awaken(provider: ActorRef) extends Data
+  case class Initialized(provider: ActorRef,
                          jobContext: ActorRef,
                          contextConfig: Config,
                          db: Database) extends Data
@@ -49,7 +50,6 @@ object ContextApplicationActor {
                         jarsForSpark: List[String])
   case object StartContext
   case object ContextStarted
-  case class ContextStartFailed(e: Throwable)
   case object ShutDown
 }
 
@@ -60,49 +60,51 @@ object ContextApplicationActor {
  * @param contextId context ID
  * @param masterHost master application host
  * @param masterPort master application port
+ * @param gatewayPath path to context gateway for registering
  * @param config local application config
  */
 class ContextApplicationActor(contextName: String,
                               contextId: ID,
                               masterHost: String,
                               masterPort: Int,
+                              gatewayPath: String,
                               val config: Config)
   extends FSM[states.State, data.Data]
   with DatabaseUtils with ContextNetworkConfig with AskTimeout {
   import ContextApplicationActor._
   
   /**
-   * Supervisor selection points to [[ContextSupervisorActor]]
+   * Supervisor selection points to [[ContextProviderActor]]
    */
-  val supervisorSelection =
+  val providerSelection =
     context.actorSelection(ActorUtils.getActorAddress(
       "ManagerSystem",
       masterHost,
       masterPort,
-      s"Supervisor/ContextManager/ContextSupervisor-$contextName"
+      gatewayPath
     ))
 
   /**
-   * Resolve supervisor, watch it setup FSM initial state
+   * Resolve provider, watch it setup FSM initial state
    */
   override def preStart(): Unit = {
-    log.info(s"Trying to watch the manager actor $supervisorSelection at for $masterHost:$masterPort")
+    log.info(s"Trying to watch the manager actor $providerSelection at for $masterHost:$masterPort")
 
-    // Resolve supervisor actor reference
-    supervisorSelection.resolveOne() map {
-      case supervisor =>
-        log.info(s"Now watching the ContextSupervisor($supervisor) from context application actor.")
-        context.watch(supervisor)
+    // Resolve provider actor reference
+    providerSelection.resolveOne() map {
+      case provider =>
+        log.info(s"Now watching the ContextSupervisor($provider) from context application actor.")
+        context.watch(provider)
         
         // Setup initial FSM state and start
-        startWith(states.Awaken, data.Awaken(supervisor))
+        startWith(states.Awaken, data.Awaken(provider))
         initialize()
         
-        // Sent registration request to supervisor
-        supervisor ! RegisterContextApplication(self)
+        // Sent registration request to provider
+        provider ! RegisterContextApplication(self)
     } onFailure {
       case e: Throwable =>
-        log.error("Error watching supervisor.", e)
+        log.error("Error watching provider.", e)
         context.system.shutdown()
     }
   }
@@ -112,7 +114,7 @@ class ContextApplicationActor(contextName: String,
    * creates [[ContextActor]] and then switches to [[states.Initialized]].
    */
   when(states.Awaken) {
-    case Event(Initialize(name, id, remoteConnectionProvider, contextConfig, jarsForSpark), data.Awaken(supervisor)) =>
+    case Event(Initialize(name, id, remoteConnectionProvider, contextConfig, jarsForSpark), data.Awaken(provider)) =>
       log.info(s"Context application $contextName:$contextId received initialisation data.")
 
       val mergedConfig = contextConfig
@@ -122,8 +124,8 @@ class ContextApplicationActor(contextName: String,
       val db = initDbConnection(remoteConnectionProvider)
       val jobContext = context.actorOf(Props(classOf[ContextActor], contextName, contextId, mergedConfig))
 
-      supervisor ! ContextApplicationInitialized(sparkUiPort)
-      goto(states.Initialized) using data.Initialized(supervisor, jobContext, mergedConfig, db)
+      provider ! ContextApplicationInitialized(sparkUiPort)
+      goto(states.Initialized) using data.Initialized(provider, jobContext, mergedConfig, db)
   }
 
   /**
@@ -142,13 +144,13 @@ class ContextApplicationActor(contextName: String,
    * [[states.Running]] once [[ContextStarted]] received.
    */
   when(states.Starting) {
-    case Event(ContextStarted, current @ data.Initialized(supervisor, _, contextConfig, _)) =>
+    case Event(ContextStarted, current @ data.Initialized(provider, _, contextConfig, _)) =>
       log.info(s"Context $contextName:$contextId started.")
-      supervisor ! JobContextStarted(contextConfig)
+      provider ! JobContextStarted(contextConfig)
       goto(states.Running)
-    case Event(errorMessage @ ContextStartFailed(e), data.Initialized(supervisor, _, _, _)) =>
-      supervisor ! errorMessage
-      stop(FSM.Failure(e)) replying errorMessage
+    case Event(error: JobContextStartException, data.Initialized(provider, _, _, _)) =>
+      provider ! error
+      stop(FSM.Failure(error)) replying error
   }
 
   /**
@@ -165,7 +167,7 @@ class ContextApplicationActor(contextName: String,
   }
 
   whenUnhandled {
-    case Event(Terminated(actor), having: data.Data) if actor.equals(having.supervisor) =>
+    case Event(Terminated(actor), having: data.Data) if actor.equals(having.provider) =>
       stop(FSM.Shutdown)
     case Event(Terminated(actor), data.Initialized(_, jobContext, _, _)) if actor.equals(jobContext) =>
       stop(FSM.Failure(s"Unexpected shutdown of context $contextName:$contextId."))

@@ -21,6 +21,7 @@ xmxMemory=$5
 processDir=$6
 masterHost=$7
 masterPort=$8
+gatewayPath=$9
 
 echo "jarsForClasspath = ${jarsForClasspath}"
 echo "contextName      = ${contextName}"
@@ -30,6 +31,7 @@ echo "xmxMemory        = ${xmxMemory}"
 echo "processDir       = ${processDir}"
 echo "masterHost       = ${masterHost}"
 echo "masterPort       = ${masterPort}"
+echo "gatewayPath      = ${gatewayPath}"
 
 
 GC_OPTS="-XX:+UseConcMarkSweepGC
@@ -94,7 +96,7 @@ if [ -f "${SQL_EXTRAS}" ]; then
 fi
 
 # Context application settings
-PROGRAM_ARGUMENTS="${APP_CONF_FILE} ${contextName} ${contextId} ${masterHost} ${masterPort}"
+PROGRAM_ARGUMENTS="${APP_CONF_FILE} ${contextName} ${contextId} ${masterHost} ${masterPort} ${gatewayPath}"
 
 # Files to submit
 FILES="${RESOURCE_DIR}/deploy.conf,${APP_DIR}/${LOG4J_PROPERTIES}"

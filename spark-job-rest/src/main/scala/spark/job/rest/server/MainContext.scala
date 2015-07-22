@@ -25,6 +25,7 @@ object MainContext extends ActorUtils with ContextNetworkConfig {
     val contextId = idFromString(args(2))
     val masterHost = args(3)
     val masterPort = args(4).toInt
+    val gatewayPath = args(5)
 
     config = contextApplicationConfig(extraConfig)
 
@@ -33,7 +34,7 @@ object MainContext extends ActorUtils with ContextNetworkConfig {
     // Use default config as a base
     val system = ActorSystem(contextSystemPrefix + contextName, akkaSystemConfig)
 
-    system.actorOf(Props(new ContextApplicationActor(contextName, contextId, masterHost, masterPort, config)), contextActorPrefix + contextName)
+    system.actorOf(Props(new ContextApplicationActor(contextName, contextId, masterHost, masterPort, gatewayPath, config)), contextActorPrefix + contextName)
 
     log.info(s"Initialized system $contextSystemPrefix$contextName and actor $contextActorPrefix$contextName")
   }

@@ -1,17 +1,12 @@
 package spark.job.rest.server.domain.actors
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorLogging}
 import com.typesafe.config.Config
-import org.slf4j.LoggerFactory
 import spark.job.rest.api.types.ID
 import spark.job.rest.config.durations.Durations
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.sys.process.{Process, ProcessBuilder, ProcessLogger}
-
-object ContextProcessActor {
-  case object Terminate
-}
 
 /**
  * Actor responsible for execution of context process.
@@ -21,10 +16,7 @@ object ContextProcessActor {
  * @param jars jars for spark-submit
  * @param config application config which specifies durations
  */
-class ContextProcessActor(contextName: String, contextId: ID, jars: String, val config: Config) extends Actor with Durations {
-  import ContextProcessActor._
-
-  val log = LoggerFactory.getLogger(s"$getClass::$contextName")
+class ContextProcessActor(contextName: String, contextId: ID, gatewayPath: String, jars: String, val config: Config) extends Actor with ActorLogging with Durations {
 
   class Slf4jProcessLogger extends ProcessLogger {
     def out(line: => String): Unit = log.info(line)
@@ -32,15 +24,16 @@ class ContextProcessActor(contextName: String, contextId: ID, jars: String, val 
     def buffer[T](f: => T): T = f
   }
 
-  val processBuilder = createProcessBuilder(contextName, contextId, jars, config)
-
   var process: Process = _
 
   /**
-   * Schedules
+   * Starts process and schedules process watch. After process ends it notifies parent process with
+   * [[ContextProviderActor.ProcessStopped]] or [[ContextProviderActor.ProcessFailed]] regarding to process exit status.
    */
   override def preStart(): Unit = {
+    val processBuilder = createProcessBuilder(contextName, contextId, jars, config)
     process = processBuilder.run(new Slf4jProcessLogger)
+
     log.info(s"Context $contextName:$contextId process started: $processBuilder")
 
     context.system.scheduler.scheduleOnce(durations.context.waitBeforeWatch) {
@@ -50,11 +43,11 @@ class ContextProcessActor(contextName: String, contextId: ID, jars: String, val 
       // Process
       if (statusCode < 0) {
         log.error(s"Context $contextName exit with error code $statusCode.")
-        context.parent ! ContextSupervisorActor.ProcessFailed(statusCode)
+        context.parent ! ContextProviderActor.ProcessFailed(statusCode)
 
       } else {
         log.info(s"Context process exit with status $statusCode")
-        context.parent ! ContextSupervisorActor.ProcessStopped(statusCode)
+        context.parent ! ContextProviderActor.ProcessStopped(statusCode)
       }
 
       context.system.stop(self)
@@ -62,14 +55,13 @@ class ContextProcessActor(contextName: String, contextId: ID, jars: String, val 
   }
 
   override def postStop(): Unit = {
+    Option(process) foreach (_.destroy())
     log.info(s"Process actor for $contextName:$contextId stopped.")
   }
 
   def receive: Receive = {
-    case Terminate =>
-      log.info(s"Received Terminate message")
-      process.destroy()
-      context.system.stop(self)
+    case msg =>
+      log.warning(s"Context process actor is not designed to process messages but $msg received.")
   }
 
   /**
@@ -92,6 +84,6 @@ class ContextProcessActor(contextName: String, contextId: ID, jars: String, val 
     val driverMemory = processConfig.driverMemory
     val sparkMaster = processConfig.sparkMaster
 
-    Process(scriptPath, Seq(jars, contextName, contextId.toString, sparkMaster, driverMemory, processDirName, masterHost, masterPort))
+    Process(scriptPath, Seq(jars, contextName, contextId.toString, sparkMaster, driverMemory, processDirName, masterHost, masterPort, gatewayPath))
   }
 }

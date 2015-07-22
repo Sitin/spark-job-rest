@@ -25,7 +25,9 @@ object JobContextFactory {
   def makeContext(config: Config, contextName: String): ContextLike = {
     val factory = getFactory(config)
     logger.info(s"Creating context $contextName from factory $factory.")
-    factory.makeContext(config, contextName)
+    val context = factory.makeContext(config, contextName)
+    logger.info(s"Context $contextName successfully created from factory $factory.")
+    context
   }
 
   /**

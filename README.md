@@ -91,6 +91,8 @@ make start
 make stop
 ```
 
+Warning. There is an issue with very long Akka system start time with bad configured network interfaces (like poor WiFi). 
+
 ### Run in non-detached mode
 
 By default server runs in detached mode. To turn it off simply set `SJR_RUN_DETACHED` to `false`.

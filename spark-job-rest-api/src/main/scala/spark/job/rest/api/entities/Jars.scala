@@ -17,6 +17,6 @@ object Jars {
    */
   def fromString(repr: String): Jars = repr match {
     case "" => Jars()
-    case jarsString: String => Jars(jarsString.split(":").toList)
+    case jarsString: String => Jars(jarsString.split(",").toList)
   }
 }

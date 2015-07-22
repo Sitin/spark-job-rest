@@ -7,8 +7,7 @@ import org.apache.commons.lang.exception.ExceptionUtils
 import org.slf4j.LoggerFactory
 import spark.job.rest.api.types.ID
 import spark.job.rest.api.{ContextLike, SparkJobBase, SparkJobInvalid, SparkJobValid}
-import spark.job.rest.context.JobContextFactory
-import spark.job.rest.server.domain.actors.ContextApplicationActor.ContextStartFailed
+import spark.job.rest.context.{JobContextFactory, JobContextStartException}
 import spark.job.rest.server.domain.actors.JobActor.{JobFailure, JobResult, JobStarted, RunJob}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -52,7 +51,7 @@ class ContextActor(contextName: String, contextId: ID, config: Config) extends A
       } catch {
         case e: Throwable =>
           log.error("Failed to start context", e)
-          sender() ! ContextStartFailed(e)
+          sender() ! new JobContextStartException(contextName, e)
       }
       unstashAll()
   }
@@ -60,7 +59,7 @@ class ContextActor(contextName: String, contextId: ID, config: Config) extends A
   def started: Receive = {
     case RunJob(runningClass, _, jobConfig, jobId) =>
       log.info(s"Received RunJob message : runningClass=$runningClass contextName=$contextName uuid=$jobId ")
-      val jobActor = sender()
+      val questioner = sender()
 
       val jobExecutionFuture = Future {
         Try {
@@ -86,7 +85,7 @@ class ContextActor(contextName: String, contextId: ID, config: Config) extends A
           }
 
           val finalJobConfig = jobConfig.withFallback(config)
-          jobActor ! JobStarted(jobId, contextName, contextId, finalJobConfig)
+          questioner ! JobStarted(jobId, contextName, contextId, finalJobConfig)
 
           sparkJob.runJob(jobContext.asInstanceOf[sparkJob.C], finalJobConfig)
         }
@@ -95,7 +94,7 @@ class ContextActor(contextName: String, contextId: ID, config: Config) extends A
         jobExecutionFuture map {
           case Success(result) =>
             log.info(s"Finished running job : runningClass=$runningClass contextName=$contextName uuid=$jobId ")
-            jobActor ! JobResult(jobId, gsonTransformer.toJson(result))
+            questioner ! JobResult(jobId, gsonTransformer.toJson(result))
           case Failure(e: Throwable) =>
             log.error(s"Error running job : runningClass=$runningClass contextName=$contextName uuid=$jobId ", e)
             JobFailure(jobId, "Job error: " + ExceptionUtils.getStackTrace(e))

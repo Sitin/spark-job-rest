@@ -1,6 +1,6 @@
 package spark.job.rest.server.domain.actors
 
-import akka.actor.{Actor, ActorRef, ActorSelection}
+import akka.actor.{Actor, ActorRef}
 import akka.pattern.ask
 import com.typesafe.config.Config
 import org.slf4j.LoggerFactory
@@ -50,24 +50,28 @@ class JobActor(val config: Config, contextManagerActor: ActorRef, connectionProv
     case job@RunJob(runningClass, contextName, _, jobId) =>
       log.info(s"Received RunJob message : runningClass=$runningClass context=$contextName uuid=$jobId")
 
-      val fromWebApi = sender()
+      val webSender = sender()
       val getContextFuture = contextManagerActor ? GetContext(contextName)
 
       getContextFuture onSuccess {
-        case contextRef: ActorSelection =>
+        case contextRef: ActorRef =>
           log.info(s"Sending RunJob message to actor $contextRef")
           contextRef ! job
           // Report to client
-          fromWebApi ! JobAccepted
+          webSender ! JobAccepted
+
         case NoSuchContext =>
           persistJobFailure(jobId, s"No such context $contextName", db)
-          fromWebApi ! NoSuchContext
-        case e@_ => log.warn(s"Received UNKNOWN TYPE when asked for context. Type received $e")
+          webSender ! NoSuchContext
+
+        case unknown =>
+          log.warn(s"Received UNKNOWN TYPE when asked for context. Type received: $unknown")
+          webSender ! unknown
       }
 
       getContextFuture onFailure {
         case e =>
-          fromWebApi ! e
+          webSender ! e
           persistJobFailure(jobId, s"Unrecoverable error during submit: ${e.getStackTrace}", db)
           log.error(s"An error has occurred.", e)
       }

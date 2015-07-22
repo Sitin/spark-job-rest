@@ -10,6 +10,11 @@ object ContextUtils {
   private val log = LoggerFactory.getLogger(getClass)
 
   /**
+   * This is a path where jars will be stored.
+   */
+  val jarsConfigEntry = "spark.job.rest.context.jars"
+
+  /**
    * Creates Spark config from application config.
    *  - Copies everything that starts from `spark.` but not from `spark.job.rest.`.
    *  - Set jars from `spark.job.rest.context.jars`.
@@ -19,7 +24,7 @@ object ContextUtils {
    * @return
    */
   def configToSparkConf(config: Config, contextName: String): SparkConf = {
-    val jars = config.getStringList("spark.job.rest.context.jars").asScala.toSeq
+    val jars = config.getStringList(jarsConfigEntry).asScala.toSeq
     log.info(s"Jars in config for $contextName: $jars")
 
     val sparkConf = new SparkConf()
