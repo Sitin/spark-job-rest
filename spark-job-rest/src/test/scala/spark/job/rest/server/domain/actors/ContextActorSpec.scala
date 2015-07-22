@@ -83,6 +83,21 @@ class ContextActorSpec extends WordSpec with MustMatchers with BeforeAndAfter wi
       contextActor.jobContext.isInstanceOf[FakeContext] mustEqual true
     }
 
+  }
+
+  val fakeContextFactoryConfig = ConfigFactory.parseString(
+    """
+      |{
+      |  spark.job.rest.context.job-context-factory = "spark.job.rest.server.domain.actors.FakeJobContextFactory",
+      |}
+    """.stripMargin).withFallback(config)
+}
+
+
+@RunWith(classOf[JUnitRunner])
+class GsonSpec extends WordSpec with MustMatchers {
+
+  "Gson" should {
     "serialize doubles and floats properly" in {
       import com.google.gson.Gson
       import com.google.gson.GsonBuilder
@@ -92,11 +107,4 @@ class ContextActorSpec extends WordSpec with MustMatchers with BeforeAndAfter wi
       s mustEqual "{\"key1\":\"foo\",\"value1\":NaN,\"key2\":\"bar\",\"value2\":Infinity}"
     }
   }
-
-  val fakeContextFactoryConfig = ConfigFactory.parseString(
-    """
-      |{
-      |  spark.job.rest.context.job-context-factory = "spark.job.rest.server.domain.actors.FakeJobContextFactory",
-      |}
-    """.stripMargin).withFallback(config)
 }
