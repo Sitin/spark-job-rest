@@ -8,6 +8,7 @@ import spark.job.rest.api.entities.Jars
 import spark.job.rest.api.responses.{Context, Contexts}
 import spark.job.rest.config.MasterNetworkConfig
 import spark.job.rest.config.durations.AskTimeout
+import spark.job.rest.exceptions.ContextRegistrationException
 import spark.job.rest.persistence.services.ContextPersistenceService
 import spark.job.rest.persistence.slickWrapper.Driver.api._
 import spark.job.rest.server.domain.actors.ContextManagerActor._
@@ -36,7 +37,6 @@ object ContextCreationSupervisor {
  * @param submittedConfig config submitted by client
  * @param configDefaults configuration defaults obtained from application config
  * @param db database connection
- * @param connectionProvider connection provider
  * @param questioner questioner (by design REST controller) interested in context creation
  */
 class ContextCreationSupervisor(contextName: String,
@@ -44,7 +44,6 @@ class ContextCreationSupervisor(contextName: String,
                                 submittedConfig: Config,
                                 configDefaults: Config,
                                 db: Database,
-                                connectionProvider: ActorRef,
                                 questioner: ActorRef) extends Actor with ActorLogging {
   import ContextCreationSupervisor._
   import ContextManagerActor._
@@ -56,8 +55,7 @@ class ContextCreationSupervisor(contextName: String,
       jars,
       submittedConfig,
       configDefaults,
-      db,
-      connectionProvider)), name = s"ContextProvider-$contextName")
+      db)), name = s"ContextProvider-$contextName")
     context.watch(provider)
     provider
   } match {
@@ -130,7 +128,7 @@ class ContextManagerActor(val config: Config, jarActor: ActorRef, connectionProv
   }.toMap
 
   /**
-   * Database connection received from connection provider [[DatabaseServerActor]]
+   * Database connection received from connection provider: [[DatabaseServerActor]] or [[DatabaseConnectionActor]]
    */
   var db: Database = _
 
@@ -166,7 +164,6 @@ class ContextManagerActor(val config: Config, jarActor: ActorRef, connectionProv
             submittedConfig,
             config,
             db,
-            connectionProviderActor,
             webSender)),
           name = s"ContextCreationSupervisor")
       } catch {
@@ -176,11 +173,22 @@ class ContextManagerActor(val config: Config, jarActor: ActorRef, connectionProv
       }
 
     case RegisterContext(contextName, contextProvider) =>
-      log.info(s"Register context '$contextName' provider.")
-      contextMap(contextName) = Left(contextProvider)
+      for (providerOrTimeout <- contextMap.get(contextName)) providerOrTimeout match {
+        // Cancel timeout and replace it with context provider
+        case Right(registrationTimeout) =>
+          log.info(s"Cancelling registration timeout for $contextName")
+          registrationTimeout.cancel()
+          log.info(s"Registering context '$contextName' provider.")
+          contextMap(contextName) = Left(contextProvider)
+        // Throw exception if context is already exists
+        case Left(providerActor) =>
+          val error = new ContextRegistrationException(contextName, s"Context $contextName is already registered.")
+          log.error(s"Trying to register existing context $contextName", error)
+          throw error
+      }
 
     case DeleteContext(contextName) =>
-      log.info(s"Received DeleteContext message : context=$contextName")
+      log.info(s"Received DeleteContext message for $contextName from ${sender()}")
       if (contextMap contains contextName) {
         for (
           providerOrTimeout <- contextMap remove contextName

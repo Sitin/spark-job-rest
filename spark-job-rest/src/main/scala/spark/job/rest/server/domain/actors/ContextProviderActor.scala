@@ -116,14 +116,12 @@ class ContextProviderRestartIsNotAllowedException(contextName: String, cause: Th
  * @param submittedConfig config submitted by client
  * @param configDefaults configuration defaults obtained from application config
  * @param db database connection
- * @param connectionProvider connection provider
  */
 class ContextProviderActor(contextName: String,
                            jars: Jars,
                            submittedConfig: Config,
                            configDefaults: Config,
-                           db: Database,
-                           connectionProvider: ActorRef)
+                           db: Database)
   extends FSM[ContextProviderState, ContextProviderData]
   with JarUtils with ContextPersistenceService with ContextProviderConfig with Durations {
   // Internal imports
@@ -182,7 +180,7 @@ class ContextProviderActor(contextName: String,
           self.path.toStringWithoutAddress,
           jarsForClassPath,
           config)
-        , name = "ContextProcess")
+        , name = "ContextDispatcher")
 
         // Watch context dispatcher actor termination
         context.watch(contextDispatcherActor)
@@ -211,7 +209,7 @@ class ContextProviderActor(contextName: String,
       val newData = RegisteredContextApplication(newContextDetails, dispatcherActor, contextApp)
 
       // Send init info to context application
-      contextApp ! Initialize(contextName, contextId, connectionProvider, config, getJarsPathForSpark(contextDetails.jars))
+      contextApp ! Initialize(contextName, contextId, config, getJarsPathForSpark(contextDetails.jars))
 
       // Watch context application actor termination
       context.watch(contextApp)

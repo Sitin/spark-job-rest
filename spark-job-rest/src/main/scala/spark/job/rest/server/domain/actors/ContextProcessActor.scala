@@ -21,7 +21,8 @@ object ContextProcessActor {
  * @param jars jars for spark-submit
  * @param config application config which specifies durations
  */
-class ContextProcessActor(contextName: String, contextId: ID, gatewayPath: String, jars: String, val config: Config) extends Actor with ActorLogging with Durations {
+class ContextProcessActor(contextName: String, contextId: ID, gatewayPath: String, jars: String, val config: Config)
+  extends Actor with ActorLogging with Durations {
   import ContextProcessActor._
 
   class Slf4jProcessLogger extends ProcessLogger {

@@ -6,6 +6,9 @@ import spark.job.rest.server.domain.actors.ContextProviderActor.DispatcherStopRe
 class ContextException(val contextName: String, message: String, cause: Throwable = null)
   extends RuntimeException (s"$contextName: $message", cause)
 
+class ContextRegistrationException(contextName: String, message: String)
+  extends ContextException(contextName, message)
+
 class ContextDispatcherStartException(contextName: String, cause: Throwable = null)
   extends ContextException(contextName, s"Exception during context $contextName creation", cause)
 

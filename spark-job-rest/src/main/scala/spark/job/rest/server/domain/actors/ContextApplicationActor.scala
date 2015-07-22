@@ -6,10 +6,9 @@ import spark.job.rest.api.types.ID
 import spark.job.rest.config.ContextNetworkConfig
 import spark.job.rest.config.durations.AskTimeout
 import spark.job.rest.exceptions.JobContextStartException
-import spark.job.rest.persistence.slickWrapper.Driver.api.Database
 import spark.job.rest.server.domain.actors.ContextProviderActor._
 import spark.job.rest.server.domain.actors.JobActor._
-import spark.job.rest.utils.{ActorUtils, DatabaseUtils}
+import spark.job.rest.utils.ActorUtils
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -35,8 +34,7 @@ object data {
   case class Awaken(provider: ActorRef) extends Data
   case class Initialized(provider: ActorRef,
                          jobContext: ActorRef,
-                         contextConfig: Config,
-                         db: Database) extends Data
+                         contextConfig: Config) extends Data
 }
 
 /**
@@ -45,7 +43,6 @@ object data {
 object ContextApplicationActor {
   case class Initialize(contextName: String,
                         contextId: ID,
-                        connectionProviderActor: ActorRef,
                         contextConfig: Config,
                         jarsForSpark: List[String])
   case object StartContext
@@ -62,15 +59,16 @@ object ContextApplicationActor {
  * @param masterPort master application port
  * @param gatewayPath path to context gateway for registering
  * @param config local application config
+ * @param terminateOnStop whether Akka system should be terminated if actor stopped (true by default)
  */
 class ContextApplicationActor(contextName: String,
                               contextId: ID,
                               masterHost: String,
                               masterPort: Int,
                               gatewayPath: String,
-                              val config: Config)
-  extends FSM[states.State, data.Data]
-  with DatabaseUtils with ContextNetworkConfig with AskTimeout {
+                              val config: Config,
+                              terminateOnStop: Boolean = true)
+  extends FSM[states.State, data.Data] with ContextNetworkConfig with AskTimeout {
   import ContextApplicationActor._
   
   /**
@@ -114,18 +112,17 @@ class ContextApplicationActor(contextName: String,
    * creates [[ContextActor]] and then switches to [[states.Initialized]].
    */
   when(states.Awaken) {
-    case Event(Initialize(name, id, remoteConnectionProvider, contextConfig, jarsForSpark), data.Awaken(provider)) =>
+    case Event(Initialize(name, id, contextConfig, jarsForSpark), data.Awaken(provider)) =>
       log.info(s"Context application $contextName:$contextId received initialisation data.")
 
       val mergedConfig = contextConfig
         .withFallback(config)
         .withValue("spark.job.rest.context.jars", ConfigValueFactory.fromAnyRef(jarsForSpark.asJava))
         .withValue("spark.ui.port", ConfigValueFactory.fromAnyRef(sparkUiPort))
-      val db = initDbConnection(remoteConnectionProvider)
       val jobContext = context.actorOf(Props(classOf[ContextActor], contextName, contextId, mergedConfig))
 
       provider ! ContextApplicationInitialized(sparkUiPort)
-      goto(states.Initialized) using data.Initialized(provider, jobContext, mergedConfig, db)
+      goto(states.Initialized) using data.Initialized(provider, jobContext, mergedConfig)
   }
 
   /**
@@ -133,7 +130,7 @@ class ContextApplicationActor(contextName: String,
    * forward to [[ContextActor]]. Then switches to [[states.Starting]] state.
    */
   when(states.Initialized) {
-    case Event(StartContext, current @ data.Initialized(_, jobContext, _, _)) =>
+    case Event(StartContext, current @ data.Initialized(_, jobContext, _)) =>
       log.info(s"Context application $contextName:$contextId received context start request from ${sender()}.")
       jobContext ! StartContext
       goto(states.Starting) using current
@@ -144,11 +141,11 @@ class ContextApplicationActor(contextName: String,
    * [[states.Running]] once [[ContextStarted]] received.
    */
   when(states.Starting) {
-    case Event(ContextStarted, current @ data.Initialized(provider, _, contextConfig, _)) =>
+    case Event(ContextStarted, current @ data.Initialized(provider, _, contextConfig)) =>
       log.info(s"Context $contextName:$contextId started.")
       provider ! JobContextStarted(contextConfig)
       goto(states.Running)
-    case Event(error: JobContextStartException, data.Initialized(provider, _, _, _)) =>
+    case Event(error: JobContextStartException, data.Initialized(provider, _, _)) =>
       provider ! error
       stop(FSM.Failure(error)) replying error
   }
@@ -157,35 +154,31 @@ class ContextApplicationActor(contextName: String,
    * This is a main state for context application when it responds to [[RunJob]] requests.
    */
   when(states.Running) {
-    case Event(ShutDown, having @ data.Initialized(_, jobContext, _, _)) =>
+    case Event(ShutDown, having @ data.Initialized(_, jobContext, _)) =>
       log.info(s"Context application $contextName:$contextId received ShutDown message.")
       context.stop(jobContext)
       stop()
-    case Event(job: RunJob, having @ data.Initialized(_, jobContext, _, _)) =>
+    case Event(job: RunJob, having @ data.Initialized(_, jobContext, _)) =>
       jobContext forward job
       stay()
   }
 
   whenUnhandled {
     case Event(Terminated(actor), having: data.Data) if actor.equals(having.provider) =>
+      log.warning(s"Stopping context application since context provider $actor is terminated.")
       stop(FSM.Shutdown)
-    case Event(Terminated(actor), data.Initialized(_, jobContext, _, _)) if actor.equals(jobContext) =>
+    case Event(Terminated(actor), data.Initialized(_, jobContext, _)) if actor.equals(jobContext) =>
+      log.error(s"Stopping context application since job context actor $actor is terminated.")
       stop(FSM.Failure(s"Unexpected shutdown of context $contextName:$contextId."))
   }
 
   onTermination {
-    case _ => context.system.shutdown()
-  }
-
-  /**
-   * Initializes connection to database
-   * @param remoteConnectionProvider reference to connection provider actor
-   */
-  def initDbConnection(remoteConnectionProvider: ActorRef): Database = {
-    val connectionProvider = context.actorOf(Props(new DatabaseConnectionActor(remoteConnectionProvider, config)))
-    val db = dbConnection(connectionProvider)
-    log.info(s"Obtained connection to database: $db")
-    db
+    case reason =>
+      log.info(s"Terminating context application due to $reason.")
+      if (terminateOnStop) {
+        log.warning(s"Shutting down Akka system ${context.system.name} due to context application stop.")
+        context.system.shutdown()
+      }
   }
 }
 

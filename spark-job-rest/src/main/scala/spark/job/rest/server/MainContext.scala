@@ -32,9 +32,9 @@ object MainContext extends ActorUtils with ContextNetworkConfig {
     log.info(s"Started new process for contextName = $contextName with port = $masterPort")
 
     // Use default config as a base
-    val system = ActorSystem(contextSystemPrefix + contextName, akkaSystemConfig)
+    val system = ActorSystem(s"$contextSystemPrefix$contextName", akkaSystemConfig)
 
-    system.actorOf(Props(new ContextApplicationActor(contextName, contextId, masterHost, masterPort, gatewayPath, config)), contextActorPrefix + contextName)
+    system.actorOf(Props(new ContextApplicationActor(contextName, contextId, masterHost, masterPort, gatewayPath, config)), s"$contextActorPrefix$contextName")
 
     log.info(s"Initialized system $contextSystemPrefix$contextName and actor $contextActorPrefix$contextName")
   }

@@ -19,7 +19,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
  *
  * @param connectionProviderActor reference to actor which has database connection
  * @param config application level config
+ *
+ * @deprecated Since we decided to not to transfer database connection to remote actors.
+ *             May be considered as useful for client applications.
  */
+@deprecated
 class DatabaseConnectionActor(connectionProviderActor: ActorRef, val config: Config) extends Actor with AskTimeout {
 
   val log = LoggerFactory.getLogger(getClass)
