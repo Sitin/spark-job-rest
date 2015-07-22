@@ -4,9 +4,14 @@ import akka.actor.{Actor, ActorLogging}
 import com.typesafe.config.Config
 import spark.job.rest.api.types.ID
 import spark.job.rest.config.durations.Durations
+import spark.job.rest.server.domain.actors.ContextProviderActor.DispatcherStopReason
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.sys.process.{Process, ProcessBuilder, ProcessLogger}
+
+object ContextProcessActor {
+  case class ProcessExit(statusCode: Int) extends DispatcherStopReason
+}
 
 /**
  * Actor responsible for execution of context process.
@@ -17,6 +22,7 @@ import scala.sys.process.{Process, ProcessBuilder, ProcessLogger}
  * @param config application config which specifies durations
  */
 class ContextProcessActor(contextName: String, contextId: ID, gatewayPath: String, jars: String, val config: Config) extends Actor with ActorLogging with Durations {
+  import ContextProcessActor._
 
   class Slf4jProcessLogger extends ProcessLogger {
     def out(line: => String): Unit = log.info(line)
@@ -28,7 +34,7 @@ class ContextProcessActor(contextName: String, contextId: ID, gatewayPath: Strin
 
   /**
    * Starts process and schedules process watch. After process ends it notifies parent process with
-   * [[ContextProviderActor.ProcessStopped]] or [[ContextProviderActor.ProcessFailed]] regarding to process exit status.
+   * [[ContextProviderActor.DispatcherStopped]] or [[ContextProviderActor.DispatcherFailed]] regarding to process exit status.
    */
   override def preStart(): Unit = {
     val processBuilder = createProcessBuilder(contextName, contextId, jars, config)
@@ -43,11 +49,11 @@ class ContextProcessActor(contextName: String, contextId: ID, gatewayPath: Strin
       // Process
       if (statusCode < 0) {
         log.error(s"Context $contextName exit with error code $statusCode.")
-        context.parent ! ContextProviderActor.ProcessFailed(statusCode)
+        context.parent ! ContextProviderActor.DispatcherFailed(ProcessExit(statusCode))
 
       } else {
         log.info(s"Context process exit with status $statusCode")
-        context.parent ! ContextProviderActor.ProcessStopped(statusCode)
+        context.parent ! ContextProviderActor.DispatcherStopped(ProcessExit(statusCode))
       }
 
       context.system.stop(self)

@@ -5,6 +5,7 @@ import com.typesafe.config.Config
 import spark.job.rest.api.entities.{ContextDetails, ContextState, Jars}
 import spark.job.rest.api.responses.Context
 import spark.job.rest.api.types._
+import spark.job.rest.config.ContextProviderConfig
 import spark.job.rest.config.durations.Durations
 import spark.job.rest.context._
 import spark.job.rest.persistence.services.ContextPersistenceService
@@ -14,7 +15,6 @@ import spark.job.rest.utils.JarUtils
 
 /**
  * Base data trait for context provider.
- * In each state context provider has a process actor.
  */
 sealed trait ContextProviderData
 
@@ -27,7 +27,7 @@ case object Empty extends ContextProviderData
  * Trait for data for states after successful start
  */
 sealed trait SuccessfulStart extends ContextProviderData {
-  val processActor: ActorRef
+  val dispatcherActor: ActorRef
   val contextDetails: ContextDetails
 }
 
@@ -39,35 +39,35 @@ sealed trait ApplicationStarted extends ContextProviderData {
 }
 
 /**
- * Data corresponded to initial [[StartingProcess]] state when process is just started.
+ * Data corresponded to initial [[Dispatching]] state when dispatcher is just started.
  * @param contextDetails context details
- * @param processActor actor responsible for the process
+ * @param dispatcherActor actor responsible for high level context dispatching
  */
-case class StartedProcess(contextDetails: ContextDetails, processActor: ActorRef) extends ContextProviderData with SuccessfulStart
+case class StartedDispatcher(contextDetails: ContextDetails, dispatcherActor: ActorRef) extends ContextProviderData with SuccessfulStart
 
 /**
  * Data that corresponds to [[Initialising]] and [[StartingContext]] states when remote application
  * negotiates with master for configuration.
  * @param contextDetails context details
- * @param processActor actor responsible for the process
+ * @param dispatcherActor actor responsible for high level context dispatching
  * @param contextApp remote context application actor 
  */
-case class RegisteredContextApplication(contextDetails: ContextDetails, processActor: ActorRef, contextApp: ActorRef) 
+case class RegisteredContextApplication(contextDetails: ContextDetails, dispatcherActor: ActorRef, contextApp: ActorRef) 
   extends ContextProviderData with SuccessfulStart with ApplicationStarted
 
 /**
  * Data which correspond to running remote context in [[Running]].
  * @param contextDetails context details
- * @param processActor actor responsible for the process
+ * @param dispatcherActor actor responsible for high level context dispatching
  * @param contextApp remote context application actor 
  * @param jobs set of currently running jobs
  */
-case class RunningContext(contextDetails: ContextDetails, processActor: ActorRef, contextApp: ActorRef, jobs: Map[ID, ActorRef])
+case class RunningContext(contextDetails: ContextDetails, dispatcherActor: ActorRef, contextApp: ActorRef, jobs: Map[ID, ActorRef])
   extends ContextProviderData with SuccessfulStart with ApplicationStarted
 
 sealed trait ContextProviderState
 case object Idle extends ContextProviderState
-case object StartingProcess extends ContextProviderState
+case object Dispatching extends ContextProviderState
 case object Initialising extends ContextProviderState
 case object StartingContext extends ContextProviderState
 case object Running extends ContextProviderState
@@ -75,22 +75,29 @@ case object Running extends ContextProviderState
 object ContextProviderActor {
   // Initiates context creation
   case object Go
+  
   // Registering application to master
   case class RegisterContextApplication(contextApp: ActorRef)
+  
   // Initialising application
   case class ContextApplicationInitialized(sparkUiPor: Int)
   case class ContextApplicationInitFailed(message: String)
+  
   // Starting context
   case class JobContextStarted(finalConfig: Config)
   case class JobContextStartFailed(message: String)
-  // Process termination
-  sealed trait ProcessStoppedOrFailed {
-    val statusCode: Int
+  
+  // Dispatcher termination messages and traits
+  trait DispatcherStopReason
+  sealed trait DispatcherStoppedOrFailed {
+    val reason: DispatcherStopReason
   }
-  case class ProcessStopped(statusCode: Int) extends ProcessStoppedOrFailed
-  case class ProcessFailed(statusCode: Int) extends ProcessStoppedOrFailed
+  case class DispatcherStopped(reason: DispatcherStopReason) extends DispatcherStoppedOrFailed
+  case class DispatcherFailed(reason: DispatcherStopReason) extends DispatcherStoppedOrFailed
+  
   // Context info
   case object GetContextInfo
+  
   // Context termination
   case object StopContext
 }
@@ -103,7 +110,7 @@ class ContextProviderRestartIsNotAllowedException(contextName: String, cause: Th
 
 /**
  * Context contextApp responsible for single context creation.
- * It starts context processActor via [[ContextProcessActor]] and initializes remote [[ContextApplicationActor]].
+ * It starts context dispatcher (like [[ContextProcessActor]]) and initializes [[ContextApplicationActor]].
  * @param contextName context name
  * @param jars jars for context
  * @param submittedConfig config submitted by client
@@ -117,7 +124,8 @@ class ContextProviderActor(contextName: String,
                            configDefaults: Config,
                            db: Database,
                            connectionProvider: ActorRef)
-  extends FSM[ContextProviderState, ContextProviderData] with JarUtils with ContextPersistenceService with Durations {
+  extends FSM[ContextProviderState, ContextProviderData]
+  with JarUtils with ContextPersistenceService with ContextProviderConfig with Durations {
   // Internal imports
   import ContextApplicationActor.Initialize
   import ContextCreationSupervisor._
@@ -128,11 +136,6 @@ class ContextProviderActor(contextName: String,
     self.path.toStringWithoutAddress.contains(contextName),
     s"Address for context provider should contain context name but '${self.path.toStringWithoutAddress}' is given."
   )
-
-  /**
-   * Path to remote actor gateway for initialisation. Currently this actor.
-   */
-  val gatewayPath = self.path.toStringWithoutAddress
 
   /**
    * Config for config-dependent traits
@@ -155,8 +158,8 @@ class ContextProviderActor(contextName: String,
   }
 
   /**
-   * The [[Idle]] initial state responds only to a [[Go]] message, creates [[ContextProcessActor]] and moves to
-   * [[StartingProcess]] state.
+   * The [[Idle]] initial state responds only to a [[Go]] message, creates context dispatcher actor and moves to
+   * [[Dispatching]] state.
    */
   when(Idle) {
     case Event(Go, Empty) =>
@@ -165,20 +168,20 @@ class ContextProviderActor(contextName: String,
         // Persist initial context state
         val contextDetails = insertContext(ContextDetails(contextName, submittedConfig, None, jars), db)
 
-        // Create process actor which asynchronously and starts the process
-        val processActor = context.actorOf(Props(new ContextProcessActor(
+        // Create context dispatcher actor which asynchronously starts and monitors dispatching workflow
+        val contextDispatcherActor = context.actorOf(Props(contextProcessActorClass,
           contextName,
           contextDetails.id,
-          gatewayPath,
+          self.path.toStringWithoutAddress,
           getJarsPathForClasspath(jars, contextName),
           config)
-        ), name = "ContextProcess")
+        , name = "ContextProcess")
 
-        // Watch process actor termination
-        context.watch(processActor)
+        // Watch context dispatcher actor termination
+        context.watch(contextDispatcherActor)
 
         // Configure data for next FSM state and switch
-        goto(StartingProcess) using StartedProcess(contextDetails, processActor) forMax durations.context.wakeupTimeout
+        goto(Dispatching) using StartedDispatcher(contextDetails, contextDispatcherActor) forMax durations.context.wakeupTimeout
       } catch {
         case e: Throwable =>
           stop(FSM.Failure(new ContextProcessStartException(contextName, e)))
@@ -186,19 +189,20 @@ class ContextProviderActor(contextName: String,
   }
 
   /**
-   * In [[StartingProcess]] state [[ContextProviderActor]] wait while for remote processActor will start and registers back it's
-   * [[ContextApplicationActor]]. After that [[ContextProviderActor]] sends initialisation message and transits to
-   * [[Initialising]] state saving reference to context application actor in [[RegisteredContextApplication]].
-   * All cases of processActor termination are considered as failures.
+   * In [[Dispatching]] state [[ContextProviderActor]] wait while [[ContextApplicationActor]] started by dispatcher will
+   * register itself with [[RegisterContextApplication]]. After that [[ContextProviderActor]] sends initialisation
+   * message and transits to [[Initialising]] state saving reference to context application actor in
+   * [[RegisteredContextApplication]].
+   * All cases of context dispatcher termination are considered as failures.
    */
-  when(StartingProcess) {
-    case Event(RegisterContextApplication(contextApp), StartedProcess(contextDetails, processActor)) =>
+  when(Dispatching) {
+    case Event(RegisterContextApplication(contextApp), StartedDispatcher(contextDetails, dispatcherActor)) =>
       val contextId = contextDetails.id
       log.info(s"Context application for $contextName:$contextId is registered from $contextApp.")
 
       // Persist context start and create data for the next state
       val newContextDetails = updateContextState(contextId, ContextState.Started, db, "Remote context application started.")
-      val newData = RegisteredContextApplication(newContextDetails, processActor, contextApp)
+      val newData = RegisteredContextApplication(newContextDetails, dispatcherActor, contextApp)
 
       // Send init info to context application
       contextApp ! Initialize(contextName, contextId, connectionProvider, config, getJarsPathForSpark(contextDetails.jars))
@@ -208,15 +212,15 @@ class ContextProviderActor(contextName: String,
 
       goto(Initialising) using newData forMax durations.context.initialisationTimeout
 
-    case Event(failure: ProcessStoppedOrFailed, _) =>
-      stop(FSM.Failure(new UnexpectedContextProcessStopException(contextName, failure.statusCode)))
+    case Event(failure: DispatcherStoppedOrFailed, _) =>
+      stop(FSM.Failure(new UnexpectedContextDispatcherStopException(contextName, failure.reason)))
   }
 
   /**
    * At [[Initialising]] state [[ContextProviderActor]] waits until remote context application actor finishes it's
    * initialisation and will be about to start context. Once [[ContextApplicationInitialized]] received we
    * switching to [[StartingContext]] state with updated context details in [[RegisteredContextApplication]].
-   * All cases of processActor termination are considered as failures.
+   * All cases of context dispatcher termination are considered as failures.
    */
   when(Initialising) {
     case Event(ContextApplicationInitialized(sparkUiPort), data: RegisteredContextApplication) =>
@@ -232,25 +236,25 @@ class ContextProviderActor(contextName: String,
       // Switch to starting state
       goto(StartingContext) using newData forMax durations.context.startTimeout
 
-    case Event(failure: ProcessStoppedOrFailed, _) =>
-      stop(FSM.Failure(new UnexpectedContextProcessStopException(contextName, failure.statusCode)))
+    case Event(failure: DispatcherStoppedOrFailed, _) =>
+      stop(FSM.Failure(new UnexpectedContextDispatcherStopException(contextName, failure.reason)))
   }
 
   /**
    * At [[StartingContext]] state we just waiting for context to start and switching to [[Running]] after that.
-   * All cases of processActor termination are considered as failures.
+   * All cases of context dispatcher termination are considered as failures.
    */
   when(StartingContext) {
-    case Event(JobContextStarted(finalConfig), RegisteredContextApplication(contextDetails, processActor, contextApp)) =>
+    case Event(JobContextStarted(finalConfig), RegisteredContextApplication(contextDetails, dispatcherActor, contextApp)) =>
       val contextId = contextDetails.id
       log.info(s"Context $contextName:$contextId successfully started.")
-      goto(Running) using RunningContext(persistContextCreation(contextId, finalConfig, db), processActor, contextApp, Map.empty)
+      goto(Running) using RunningContext(persistContextCreation(contextId, finalConfig, db), dispatcherActor, contextApp, Map.empty)
     
-    case Event(error: JobContextStartException, RegisteredContextApplication(contextDetails, processActor, contextApp)) =>
+    case Event(error: JobContextStartException, _) =>
       stop(FSM.Failure(error))
 
-    case Event(failure: ProcessStoppedOrFailed, _) =>
-      stop(FSM.Failure(new UnexpectedContextProcessStopException(contextName, failure.statusCode)))
+    case Event(failure: DispatcherStoppedOrFailed, _) =>
+      stop(FSM.Failure(new UnexpectedContextDispatcherStopException(contextName, failure.reason)))
   }
 
   /**
@@ -293,10 +297,10 @@ class ContextProviderActor(contextName: String,
       stay()
 
     /**
-     * Process unexpected context process stop.
+     * Process unexpected context dispatcher stop.
      */
-    case Event(failure: ProcessStoppedOrFailed, _) =>
-      stop(FSM.Failure(new UnexpectedContextProcessStopException(contextName, failure.statusCode)))
+    case Event(failure: DispatcherStoppedOrFailed, _) =>
+      stop(FSM.Failure(new UnexpectedContextDispatcherStopException(contextName, failure.reason)))
   }
 
   /**
@@ -304,10 +308,10 @@ class ContextProviderActor(contextName: String,
    */
   whenUnhandled {
     /**
-     * Watch unexpected process stop
+     * Watch unexpected context dispatcher stop
      */
-    case Event(reason @ Terminated(actor), data: SuccessfulStart) if actor.equals(data.processActor) =>
-      val error = ContextCreationError(new RuntimeException(s"Unexpected termination of context process actor."))
+    case Event(reason @ Terminated(actor), data: SuccessfulStart) if actor.equals(data.dispatcherActor) =>
+      val error = ContextCreationError(new RuntimeException(s"Unexpected termination of context dispatcher actor."))
       context.parent ! error
       stop(FSM.Failure(reason)) replying error
 
@@ -350,9 +354,9 @@ class ContextProviderActor(contextName: String,
    * Here we list all allowed transitions and catch unsupported transitions.
    */
   onTransition {
-    case (Idle, StartingProcess) =>
-      log.info(s"Starting process for $contextName.")
-    case (StartingProcess, Initialising) =>
+    case (Idle, Dispatching) =>
+      log.info(s"Starting context dispatcher for $contextName.")
+    case (Dispatching, Initialising) =>
       log.info(s"Initializing context application for $contextName.")
     case (Initialising, StartingContext) =>
       log.info(s"Starting job context for $contextName.")
