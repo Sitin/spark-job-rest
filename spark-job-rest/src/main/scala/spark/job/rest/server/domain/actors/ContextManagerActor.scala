@@ -139,6 +139,8 @@ class ContextManagerActor(val config: Config, jarActor: ActorRef, connectionProv
       } else if (jars.isEmpty) {
         webSender ! JarsPropertiesIsNotSet
       } else try {
+        // FIXME: This is not enough. We have to add timeout that collects failed contexts
+        contextMap += contextName -> null
         // Create context creation supervisor to track
         context.actorOf(
           Props(new ContextCreationSupervisor(

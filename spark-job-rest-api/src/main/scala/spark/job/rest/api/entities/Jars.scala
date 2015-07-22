@@ -4,7 +4,9 @@ package spark.job.rest.api.entities
  * Simple wrapper for JARs list persistence.
  * @param list list of JARs
  */
-case class Jars(list: List[String] = Nil)
+case class Jars(list: List[String] = Nil) {
+  override def toString = list.mkString(",")
+}
 
 /**
  * Companion object methods for [[Jars]]

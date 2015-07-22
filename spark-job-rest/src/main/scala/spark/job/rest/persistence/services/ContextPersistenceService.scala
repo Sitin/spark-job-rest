@@ -34,16 +34,33 @@ trait ContextPersistenceService extends Durations {
   }
 
   /**
+   * Synchronously updates state for context with specified id if that context is exists.
+   * Does not replace [[Error]] or [[Terminated]] states.
+   * This function is dedicated to handling failure cases and is not intendent for general usege.
+   * @param contextId context's ID
+   * @param newState context state to set
+   * @param db database connection
+   * @param newDetails new context details
+   */
+  def updateContextStateIfExists(contextId: ID, newState: ContextState, db: Database, newDetails: String = ""): Unit = {
+    logContextStateUpdate(contextId, newState, newDetails)
+    val affectedContext = for { c <- contexts if c.id === contextId && c.state =!= Failed && c.state =!= Terminated } yield c
+    val contextStateUpdate = affectedContext map (x => (x.state, x.details)) update (newState, newDetails)
+    Await.ready(db.run(contextStateUpdate), dbTimeout.duration)
+  }
+
+  /**
    * Synchronously updates state for context with specified id.
    * Does not replace [[Error]] or [[Terminated]] states.
    *
    * @param contextId context's ID
    * @param newState context state to set
    * @param db database connection
+   * @param newDetails new context details
    * @return updated context
    */
   def updateContextState(contextId: ID, newState: ContextState, db: Database, newDetails: String = ""): ContextDetails = {
-    logger.info(s"Updating context $contextId state to $newState with details: $newDetails")
+    logContextStateUpdate(contextId, newState, newDetails)
     val affectedContext = for { c <- contexts if c.id === contextId && c.state =!= Failed && c.state =!= Terminated } yield c
     val contextStateUpdate = affectedContext map (x => (x.state, x.details)) update (newState, newDetails)
     Await.result(db.run(contextStateUpdate), dbTimeout.duration)
@@ -95,11 +112,33 @@ trait ContextPersistenceService extends Durations {
     }, dbTimeout.duration)
   }
 
+  /**
+   * Asynchronously returns all contexts
+   * @param db database connection
+   * @return future of context details array
+   */
   def allContexts(db: Database): Future[Array[ContextDetails]] = {
     db.run(contexts.result).map(_.toArray)
   }
 
+  /**
+   * Asynchronously returns all historical contexts
+   * @param db database connection
+   * @return future of context details array
+   */
   def allInactiveContexts(db: Database): Future[Array[ContextDetails]] = {
     db.run(contexts.filter(c => c.state =!= Running).result).map(_.toArray)
   }
+
+  /**
+   * Logs context state update to proper appender (error for [[Failed]] and info for others).
+   * @param contextId context ID
+   * @param newState new state
+   * @param newDetails new state details
+   */
+  def logContextStateUpdate(contextId: ID, newState: ContextState, newDetails: String): Unit =
+    if (newState != Failed)
+      logger.info(s"Updating context $contextId state to $newState with details: $newDetails")
+    else
+      logger.error(s"Updating context $contextId state to $newState with details: $newDetails")
 }

@@ -5,7 +5,7 @@ import com.typesafe.config.{Config, ConfigValueFactory}
 import spark.job.rest.api.types.ID
 import spark.job.rest.config.ContextNetworkConfig
 import spark.job.rest.config.durations.AskTimeout
-import spark.job.rest.context.JobContextStartException
+import spark.job.rest.exceptions.JobContextStartException
 import spark.job.rest.persistence.slickWrapper.Driver.api.Database
 import spark.job.rest.server.domain.actors.ContextProviderActor._
 import spark.job.rest.server.domain.actors.JobActor._

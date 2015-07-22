@@ -7,7 +7,8 @@ import org.apache.commons.lang.exception.ExceptionUtils
 import org.slf4j.LoggerFactory
 import spark.job.rest.api.types.ID
 import spark.job.rest.api.{ContextLike, SparkJobBase, SparkJobInvalid, SparkJobValid}
-import spark.job.rest.context.{JobContextFactory, JobContextStartException}
+import spark.job.rest.context.JobContextFactory
+import spark.job.rest.exceptions.JobContextStartException
 import spark.job.rest.server.domain.actors.JobActor.{JobFailure, JobResult, JobStarted, RunJob}
 
 import scala.concurrent.ExecutionContext.Implicits.global

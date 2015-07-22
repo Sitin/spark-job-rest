@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory
 import spark.job.rest.api.entities.{ContextDetails, JobDetails}
 import spark.job.rest.api.json.JsonProtocol._
 import spark.job.rest.api.responses._
+import spark.job.rest.exceptions.MissingJarException
 import spark.job.rest.persistence.services.{ContextPersistenceService, JobPersistenceService}
 import spark.job.rest.server.domain.actors.ContextManagerActor._
 import spark.job.rest.server.domain.actors.JarActor._
@@ -173,6 +174,7 @@ class Controller(val config: Config,
                         submitJobFuture map {
                           case JobAccepted => ctx.complete(StatusCodes.OK, Job.fromJobDetails(jobDetails))
                           case NoSuchContext => ctx.complete(StatusCodes.BadRequest, ErrorResponse("No such context."))
+                          case e: MissingJarException => ctx.complete(StatusCodes.BadRequest, ErrorResponse(s"Jar ${e.jar} is not available."))
                           case e: Throwable => ctx.complete(StatusCodes.InternalServerError, ErrorResponse(e.getMessage))
                           case x: Any => ctx.complete(StatusCodes.InternalServerError, ErrorResponse(x.toString))
                         }

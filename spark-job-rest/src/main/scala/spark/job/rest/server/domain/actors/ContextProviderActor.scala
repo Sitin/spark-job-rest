@@ -7,7 +7,7 @@ import spark.job.rest.api.responses.Context
 import spark.job.rest.api.types._
 import spark.job.rest.config.ContextProviderConfig
 import spark.job.rest.config.durations.Durations
-import spark.job.rest.context._
+import spark.job.rest.exceptions._
 import spark.job.rest.persistence.services.ContextPersistenceService
 import spark.job.rest.persistence.slickWrapper.Driver.api._
 import spark.job.rest.server.domain.actors.ContextApplicationActor.StartContext
@@ -138,6 +138,11 @@ class ContextProviderActor(contextName: String,
   )
 
   /**
+   * Context ID should be calculated as soon as possible to handle most fatal failure cases.
+   */
+  val contextId = nextIdentifier
+
+  /**
    * Config for config-dependent traits
    */
   val config = submittedConfig.withFallback(configDefaults)
@@ -166,14 +171,16 @@ class ContextProviderActor(contextName: String,
       log.info(s"Context provider $self requested to create context $contextName.")
       try {
         // Persist initial context state
-        val contextDetails = insertContext(ContextDetails(contextName, submittedConfig, None, jars), db)
+        val contextDetails = insertContext(ContextDetails(contextName, submittedConfig, None, jars, id = contextId), db)
+
+        val jarsForClassPath = getJarsPathForClasspath(jars, contextName)
 
         // Create context dispatcher actor which asynchronously starts and monitors dispatching workflow
         val contextDispatcherActor = context.actorOf(Props(contextProcessActorClass,
           contextName,
           contextDetails.id,
           self.path.toStringWithoutAddress,
-          getJarsPathForClasspath(jars, contextName),
+          jarsForClassPath,
           config)
         , name = "ContextProcess")
 
@@ -184,7 +191,7 @@ class ContextProviderActor(contextName: String,
         goto(Dispatching) using StartedDispatcher(contextDetails, contextDispatcherActor) forMax durations.context.wakeupTimeout
       } catch {
         case e: Throwable =>
-          stop(FSM.Failure(new ContextProcessStartException(contextName, e)))
+          stop(FSM.Failure(new ContextDispatcherStartException(contextName, e)))
       }
   }
 
@@ -197,7 +204,6 @@ class ContextProviderActor(contextName: String,
    */
   when(Dispatching) {
     case Event(RegisterContextApplication(contextApp), StartedDispatcher(contextDetails, dispatcherActor)) =>
-      val contextId = contextDetails.id
       log.info(s"Context application for $contextName:$contextId is registered from $contextApp.")
 
       // Persist context start and create data for the next state
@@ -224,7 +230,6 @@ class ContextProviderActor(contextName: String,
    */
   when(Initialising) {
     case Event(ContextApplicationInitialized(sparkUiPort), data: RegisteredContextApplication) =>
-      val contextId = data.contextDetails.id
       log.info(s"Context application $contextName:$contextId is initialized and is about to start the context.")
 
       // Persist context initialisation and obtain data for new state
@@ -246,7 +251,6 @@ class ContextProviderActor(contextName: String,
    */
   when(StartingContext) {
     case Event(JobContextStarted(finalConfig), RegisteredContextApplication(contextDetails, dispatcherActor, contextApp)) =>
-      val contextId = contextDetails.id
       log.info(s"Context $contextName:$contextId successfully started.")
       goto(Running) using RunningContext(persistContextCreation(contextId, finalConfig, db), dispatcherActor, contextApp, Map.empty)
     
@@ -328,20 +332,26 @@ class ContextProviderActor(contextName: String,
    * Handling all termination cases.
    */
   onTermination {
+    // Handling dispatcher start failure
+    case StopEvent(FSM.Failure(reason: ContextDispatcherStartException), _, _) =>
+      val errorToReport = reason.getCause match {
+        case e: Throwable => e
+        case _ => reason
+      }
+      updateContextStateIfExists(contextId, ContextState.Failed, db, s"Context failed during dispatcher start due to unclassified error: ${errorToReport.getMessage}")
+      context.parent ! errorToReport
+
     // Handling actor failure
     case StopEvent(FSM.Failure(reason: ContextException), state, data: SuccessfulStart) =>
-      val contextId = data.contextDetails.id
       updateContextState(contextId, ContextState.Failed, db, s"Context failed at $state due to unclassified error: ${reason.getMessage}")
       context.parent ! reason
 
     // Shutdown cleanup
     case StopEvent(FSM.Shutdown, Running, data: SuccessfulStart) =>
-      val contextId = data.contextDetails.id
       updateContextState(contextId, ContextState.Terminated, db, s"Context terminated by request.")
 
     // Guardian for unsupported suicide at any state
     case StopEvent(reason @ FSM.Normal, state, data: SuccessfulStart) =>
-      val contextId = data.contextDetails.id
       updateContextState(contextId, ContextState.Failed, db, s"Context committed suicide at $state state.")
       context.parent ! new UnexpectedContextProviderStop(contextName, reason)
 

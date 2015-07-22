@@ -4,6 +4,7 @@ import java.io.{File, FileNotFoundException}
 
 import spark.job.rest.api.entities.Jars
 import spark.job.rest.config.JarsConfig
+import spark.job.rest.exceptions.MissingJarException
 
 /**
  * Mixable helpers for JAR manipulation which depends on application config.
@@ -68,7 +69,7 @@ object JarUtils {
     val diskFile = new File(diskPath)
 
     if (!diskFile.exists()) {
-      throw new FileNotFoundException(s"Jar $path for spark-submit not found.")
+      throw new MissingJarException(path, "spark-submit")
     }
 
     diskFile.getAbsolutePath
@@ -93,7 +94,7 @@ object JarUtils {
     if (path.startsWith("hdfs")) {
       // Throw exception if file is not exists
       if (!HdfsUtils.hdfsFileExists(path)) {
-        throw new FileNotFoundException(s"Jar $path for Spark config not found.")
+        throw new MissingJarException(path, "Spark config")
       }
       path
     } else {
@@ -104,7 +105,7 @@ object JarUtils {
 
       val diskFile = new File(diskPath)
       if (!diskFile.exists()) {
-        throw new FileNotFoundException(s"Jar $path for Spark config not found.")
+        throw new MissingJarException(path, "Spark config")
       }
 
       diskFile.getAbsolutePath
