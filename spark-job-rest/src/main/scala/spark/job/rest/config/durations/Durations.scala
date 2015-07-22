@@ -26,8 +26,9 @@ trait Durations extends ConfigDependent {
 
     object context {
       // Following parameters defines context actor initialisation and registration
+      def registerTimeout = FiniteDuration(config.getLong(s"$prefix.context.register-timeout"), TimeUnit.MILLISECONDS)
       def wakeupTimeout = FiniteDuration(config.getLong(s"$prefix.context.wakeup-timeout"), TimeUnit.MILLISECONDS)
-      def watchSupervisorTimeout = FiniteDuration(config.getLong(s"$prefix.context.watch-supervisor-timeout"), TimeUnit.MILLISECONDS)
+      def watchGatewayTimeout = FiniteDuration(config.getLong(s"$prefix.context.watch-gateway-timeout"), TimeUnit.MILLISECONDS)
       def initialisationTimeout = FiniteDuration(config.getLong(s"$prefix.context.initialisation-timeout"), TimeUnit.MILLISECONDS)
       def startTimeout = FiniteDuration(config.getLong(s"$prefix.context.start-timeout"), TimeUnit.MILLISECONDS)
       // Context actor process start/stop durations

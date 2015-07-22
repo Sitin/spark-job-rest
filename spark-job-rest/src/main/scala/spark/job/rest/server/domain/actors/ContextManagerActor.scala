@@ -102,6 +102,7 @@ object ContextManagerActor {
   case class GetContextInfo(contextName: String)
   case object GetAllContexts
   case object NoSuchContext
+  case object ContextCreationRequested
   case object ContextAlreadyExists
   case object JarsPropertiesIsNotSet
   case class RegisterContext(contextName: String, contextProvider: ActorRef)
@@ -115,7 +116,18 @@ object ContextManagerActor {
 class ContextManagerActor(val config: Config, jarActor: ActorRef, connectionProviderActor: ActorRef)
   extends Actor with ActorLogging with ContextPersistenceService with DatabaseUtils with ActorUtils with MasterNetworkConfig with AskTimeout {
 
-  val contextMap = new mutable.HashMap[String, ActorRef]() with mutable.SynchronizedMap[String, ActorRef]
+  /**
+   * In context map we store either reference to context provider or timeout for it's registration.
+   */
+  val contextMap = new mutable.HashMap[String, Either[ActorRef, Cancellable]]() with mutable.SynchronizedMap[String, Either[ActorRef, Cancellable]]
+
+  /**
+   * Returns map of contexts which already registered their providers
+   * @return registered context
+   */
+  def registeredContextsMap: Map[String, ActorRef] = contextMap.collect{
+    case (name, Left(actor)) => name -> actor
+  }.toMap
 
   /**
    * Database connection received from connection provider [[DatabaseServerActor]]
@@ -139,8 +151,13 @@ class ContextManagerActor(val config: Config, jarActor: ActorRef, connectionProv
       } else if (jars.isEmpty) {
         webSender ! JarsPropertiesIsNotSet
       } else try {
-        // FIXME: This is not enough. We have to add timeout that collects failed contexts
-        contextMap += contextName -> null
+        // If context provider won't be registered in time we will delete context
+        val contextRegistrationTimeout = context.system.scheduler
+          .scheduleOnce(durations.context.registerTimeout) {
+            self ! DeleteContext(contextName)
+          }
+        // Add context creation cancel operation to context map
+        contextMap += contextName -> Right(contextRegistrationTimeout)
         // Create context creation supervisor to track
         context.actorOf(
           Props(new ContextCreationSupervisor(
@@ -160,16 +177,22 @@ class ContextManagerActor(val config: Config, jarActor: ActorRef, connectionProv
 
     case RegisterContext(contextName, contextProvider) =>
       log.info(s"Register context '$contextName' provider.")
-      contextMap += contextName -> contextProvider
+      contextMap(contextName) = Left(contextProvider)
 
     case DeleteContext(contextName) =>
       log.info(s"Received DeleteContext message : context=$contextName")
       if (contextMap contains contextName) {
         for (
-          providerRef <- contextMap remove contextName
-        ) {
-          context.stop(providerRef)
-          sender ! Success
+          providerOrTimeout <- contextMap remove contextName
+        ) providerOrTimeout match {
+          case Left(providerRef) =>
+            log.info(s"Stopping context provider actor $providerRef.")
+            context.stop(providerRef)
+            sender ! Success
+          case Right(contextCreationTimeout) =>
+            log.info(s"Cancelling context creation timeout $contextCreationTimeout.")
+            contextCreationTimeout.cancel()
+            sender ! Success
         }
       } else {
         sender ! NoSuchContext
@@ -185,8 +208,8 @@ class ContextManagerActor(val config: Config, jarActor: ActorRef, connectionProv
 
     case GetContextInfo(contextName) =>
       log.info(s"Received GetContextInfo message : context=$contextName")
-      if (contextMap contains contextName) {
-        contextMap(contextName) forward ContextProviderActor.GetContextInfo
+      if (registeredContextsMap contains contextName) {
+        registeredContextsMap(contextName) forward ContextProviderActor.GetContextInfo
       } else {
         sender ! NoSuchContext
       }
@@ -194,7 +217,7 @@ class ContextManagerActor(val config: Config, jarActor: ActorRef, connectionProv
     case GetAllContexts =>
       log.info(s"Received GetAllContexts message.")
       val webSender = sender()
-      val arrayOfContextFutures: List[Future[Context]] = contextMap.values.toList map {
+      val arrayOfContextFutures: List[Future[Context]] = registeredContextsMap.values.toList map {
         case provider => (provider ? ContextProviderActor.GetContextInfo).mapTo[Context]
       }
       // Convert sequence of futures to future of sequence
@@ -204,7 +227,7 @@ class ContextManagerActor(val config: Config, jarActor: ActorRef, connectionProv
 
     case Terminated(diedActor) =>
       val terminatedContext: Option[(String, ActorRef)] =
-        contextMap.asParSeq find { case (contextName, actorRef) => actorRef.equals(diedActor) }
+        registeredContextsMap.asParSeq find { case (contextName, actorRef) => actorRef.equals(diedActor) }
 
       terminatedContext match {
         case Some((contextName, provider)) =>
