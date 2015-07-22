@@ -1,7 +1,7 @@
 package spark.job.rest.server.domain.actors
 
 import akka.actor.{Actor, ActorRef, Props, Stash, Terminated}
-import com.google.gson.Gson
+import com.google.gson.{GsonBuilder, Gson}
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.apache.commons.lang.exception.ExceptionUtils
 import org.slf4j.LoggerFactory
@@ -77,7 +77,7 @@ class ContextActor(localConfig: Config) extends Actor
   /**
    * JSON serializer for job results
    */
-  val gsonTransformer = new Gson()
+  val gsonTransformer = new GsonBuilder().serializeSpecialFloatingPointValues().create()
 
   /**
    * Actor initialisation

@@ -82,6 +82,15 @@ class ContextActorSpec extends WordSpec with MustMatchers with BeforeAndAfter wi
       val Success(ContextActor.Initialized) = future.value.get
       contextActor.jobContext.isInstanceOf[FakeContext] mustEqual true
     }
+
+    "serialize doubles and floats properly" in {
+      import com.google.gson.Gson
+      import com.google.gson.GsonBuilder
+      val gson = new GsonBuilder().serializeSpecialFloatingPointValues().create()
+      val result = Map("foo" -> Double.NaN, "bar" -> Double.PositiveInfinity)
+      val s = gson.toJson(result)
+      s mustEqual "{\"key1\":\"foo\",\"value1\":NaN,\"key2\":\"bar\",\"value2\":Infinity}"
+    }
   }
 
   val fakeContextFactoryConfig = ConfigFactory.parseString(
