@@ -174,7 +174,7 @@ class ContextProviderActor(contextName: String,
         val jarsForClassPath = getJarsPathForClasspath(jars, contextName)
 
         // Create context dispatcher actor which asynchronously starts and monitors dispatching workflow
-        val contextDispatcherActor = context.actorOf(Props(contextProcessActorClass,
+        val contextDispatcherActor = context.actorOf(Props(contextDispatcherActorClass,
           contextName,
           contextDetails.id,
           self.path.toStringWithoutAddress,
