@@ -109,9 +109,8 @@ object ContextManagerActor {
 /**
  * Actor that creates, monitors and destroys contexts and corresponding processes.
  * @param config configuration defaults
- * @param jarActor actor that responsible for jars which may be included to context classpath
  */
-class ContextManagerActor(val config: Config, jarActor: ActorRef, connectionProviderActor: ActorRef)
+class ContextManagerActor(val config: Config, connectionProviderActor: ActorRef)
   extends Actor with ActorLogging with ContextPersistenceService with DatabaseUtils with ActorUtils with MasterNetworkConfig with AskTimeout {
 
   /**
@@ -165,7 +164,7 @@ class ContextManagerActor(val config: Config, jarActor: ActorRef, connectionProv
             config,
             db,
             webSender)),
-          name = s"ContextCreationSupervisor")
+          name = s"ContextCreationSupervisor-$contextName")
       } catch {
         case e: Throwable =>
           log.error("Unrecoverable context creation error", e)
@@ -196,11 +195,11 @@ class ContextManagerActor(val config: Config, jarActor: ActorRef, connectionProv
           case Left(providerRef) =>
             log.info(s"Stopping context provider actor $providerRef.")
             context.stop(providerRef)
-            sender ! Success
+            sender ! Success(contextName)
           case Right(contextCreationTimeout) =>
             log.info(s"Cancelling context creation timeout $contextCreationTimeout.")
             contextCreationTimeout.cancel()
-            sender ! Success
+            sender ! Success(contextName)
         }
       } else {
         sender ! NoSuchContext

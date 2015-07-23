@@ -54,6 +54,7 @@ class ContextActorSpec extends WordSpec with MustMatchers with BeforeAndAfter wi
 
   after {
     contextActor.jobContext.stop()
+    contextActorRef.stop()
   }
 
   "ContextActor" should {

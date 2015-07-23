@@ -312,7 +312,7 @@ class Controller(val config: Config,
             val resultFuture = contextManagerActor ? DeleteContext(contextName)
             respondWithMediaType(MediaTypes.`application/json`) { ctx =>
               resultFuture.map {
-                case Success => ctx.complete(StatusCodes.OK, SimpleMessage("Context deleted."))
+                case _: Success => ctx.complete(StatusCodes.OK, SimpleMessage(s"Context $contextName deleted."))
                 case NoSuchContext => ctx.complete(StatusCodes.BadRequest, ErrorResponse("No such context."))
                 case x: Any => ctx.complete(StatusCodes.InternalServerError, ErrorResponse(x.toString))
               }

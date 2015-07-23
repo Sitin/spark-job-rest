@@ -37,7 +37,7 @@ object Main extends ActorUtils with MasterNetworkConfig with AskTimeout {
     awaitActorInitialization(databaseServerActor, durations.init.timeout, durations.init.tries)
 
     val jarActor = createActor(Props(new JarActor(config)), "JarActor", system, supervisor)
-    val contextManagerActor = createActor(Props(new ContextManagerActor(config, jarActor, databaseServerActor)), "ContextManager", system, supervisor)
+    val contextManagerActor = createActor(Props(new ContextManagerActor(config, databaseServerActor)), "ContextManager", system, supervisor)
     val jobManagerActor = createActor(Props(new JobActor(config, contextManagerActor, databaseServerActor)), "JobManager", system, supervisor)
 
     // HTTP server will start immediately after controller instantiation

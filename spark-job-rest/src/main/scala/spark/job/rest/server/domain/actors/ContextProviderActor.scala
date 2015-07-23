@@ -295,7 +295,7 @@ class ContextProviderActor(contextName: String,
      */
     case Event(GetContextInfo, data: RunningContext) =>
       log.info(s"Received context info request for $contextName.")
-      sender() ! Context(contextName, data.contextDetails.id, data.contextDetails.state, data.contextDetails.sparkUiPort)
+      sender() ! Context.fromContextDetails(data.contextDetails)
       stay()
 
     /**

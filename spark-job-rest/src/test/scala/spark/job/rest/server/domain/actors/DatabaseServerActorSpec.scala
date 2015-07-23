@@ -12,7 +12,7 @@ import spark.job.rest.persistence.schema
 import spark.job.rest.persistence.schema._
 import spark.job.rest.persistence.slickWrapper.Driver.api._
 import spark.job.rest.server.domain.actors.messages._
-import spark.job.rest.test.durations.{dbTimeout, timeLimits}
+import spark.job.rest.test.durations._
 import spark.job.rest.test.fixtures
 
 import scala.concurrent.Await
@@ -38,7 +38,7 @@ class DatabaseServerActorSpec extends WordSpec with MustMatchers with BeforeAndA
   }
 
   after {
-    Await.result(gracefulStop(databaseServerActorRef, timeout.duration), timeout.duration)
+    Await.result(gracefulStop(databaseServerActorRef, stopTimeout.duration), stopTimeout.duration)
   }
 
   "DatabaseServerActor" should {

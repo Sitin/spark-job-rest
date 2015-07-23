@@ -9,7 +9,7 @@ import spark.job.rest.exceptions.MissingJarException
 /**
  * Mixable helpers for JAR manipulation which depends on application config.
  */
-trait JarUtils  extends JarsConfig {
+trait JarUtils extends JarsConfig {
   def getJarsPathForSpark(jars: Jars): List[String] =
     jars.list map { x: String =>
       JarUtils.getJarPathForSpark(x, jarFolder)
